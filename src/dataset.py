@@ -3,6 +3,7 @@ __license__ = "GPLv3"
 # what about verbose extractors? separate?
 # and what about converters?
 
+
 class DataSet(object):
     def __init__(self, path: str, backend: str):
         self.path = path
@@ -13,10 +14,11 @@ class DataSet(object):
     def append_data_point(self, data_point: dict):
         pass
 
-    def extract_feature(self, extractor, *args, **kwargs):
+    def extract_feature(self, extractor, *args, verbose: int=0, **kwargs):
         pass
 
-    def extract_feature_dependent_feature(self, extractor, feature_names_and_types: list, *args, **kwargs):
+    def extract_feature_dependent_feature(self, extractor, feature_names_and_types: list, *args, verbose: int=0,
+                                          **kwargs):
         """
         feature_names_and_types - a list of tuples, each is (<feature_name>, <convert_numpy>)
         this is passed to return feature_single (searching by id), a list of tuples (<feature_name>, <feature>)
@@ -28,10 +30,12 @@ class DataSet(object):
     def delete_feature(self, feature_name: str):
         pass
 
-    def rename_feature(self, original_feature_name: str, new_feature_name: str):
+    def rename_feature(self, original_feature_name: str, new_feature_name: str, overwrite_existing: bool=False):
         pass
 
-    def force_write_feature(self):
+    def force_write_feature(self, feature_name: str, feature: list):
+        # if len(feature) != self.total_points:
+        #     raise some error
         pass
 
     def return_feature(self, feature_name: str, convert_numpy: bool=False):
