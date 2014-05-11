@@ -8,6 +8,6 @@ setup(name='krakenlib',
       url='https://github.com/Kunstmord/krakenlib',
       license="GPL",
       packages=['krakenlib'],
-      package_dir={'krakenlib': 'src'},
+      package_dir={'krakenlib': 'krakenlib'},
       requires=['numpy', 'scipy'],
       )
