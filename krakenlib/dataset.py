@@ -5,18 +5,38 @@ __license__ = "GPLv3"
 
 
 class DataSet(object):
-    def __init__(self, path: str, backend: str):
+    def __init__(self, path: str, backend: str, metadata: dict=None):
         self.path = path
         self.backend = backend
         self.total_records = 0
-        self.metadata = {}
+        if metadata is None:
+            self.metadata = {}
+        else:
+            self.metadata = metadata
         self.names = ()  # a tuple of all column names!
         # add backend checking here! ('sqlite', 'mongodb', 'csv', 'pickle')
 
-    def add_metadata(self, metadata: dict):
-        self.metadata = metadata
+    def update_metadata(self, new_metadata: dict):
+        """
+        Keep this simple - overwrite any metadata with same key names
+        """
+        if self.metadata is {}:
+            self.metadata = new_metadata
+        else:
+            self.metadata.update(new_metadata)
+        return None
         # for mdata in metadata:
         #     setattr(self, ...)
+
+    def get_all_metadata(self) -> dict:
+        return self.metadata
+
+    def get_metadata(self, keys: tuple) -> dict:
+        result_dict = {}
+        for key in keys:
+            if key in self.metadata:
+                result_dict[key] = self.metadata[key]
+        return result_dict
 
     def populate(self, tentacle, *args, **kwargs):
         """
@@ -96,7 +116,7 @@ class DataSet(object):
         pass
 
     def return_feature_single_record(self, feature_name: str, search_for, search_by_field_name: str='id',
-                                    convert_numpy: bool=False):
+                                     convert_numpy: bool=False):
         """
         return feature for a specific data record, which is the first data record for which the column
         specified by 'search_by_field_name' is equal to the 'search_for' parameter
