@@ -85,7 +85,10 @@ class DataSet(object):
         pass
 
     def delete_feature(self, feature_name: str):
-        pass
+        if self.backend == 'sqlite':
+            return 0  # raise an error!
+        else:
+            return 1
 
     def rename_feature(self, original_feature_name: str, new_feature_name: str, overwrite_existing: bool=False):
         pass
