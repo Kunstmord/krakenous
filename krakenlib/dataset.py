@@ -2,7 +2,7 @@ __author__ = 'George Oblapenko, Viktor Evstratov'
 __license__ = "GPLv3"
 # and what about converters?
 # if you want to return labels, write your own return_feature('label')
-
+from krakenlib.errors import *
 
 class DataSet(object):
     def __init__(self, path: str, backend: str, metadata: dict=None):
@@ -86,7 +86,7 @@ class DataSet(object):
 
     def delete_feature(self, feature_name: str):
         if self.backend == 'sqlite':
-            return 0  # raise an error!
+            raise UnsupportedOperation('delete feature', 'sqlite')
         else:
             return 1
 
