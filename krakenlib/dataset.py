@@ -10,12 +10,14 @@ class DataSet(object):
         self.path = path
         self.backend = backend
         self.total_records = 0
+        self.feature_consistency = {}
         if metadata is None:
             self.metadata = {}
         else:
             self.metadata = metadata
         self.names = ()  # a tuple of all column names!
         # add backend checking here! ('sqlite', 'mongodb', 'csv', 'pickle')
+        # load stuff from backend!
 
     def update_metadata(self, new_metadata: dict):
         """
@@ -65,7 +67,8 @@ class DataSet(object):
         # if list/numpy array/string -> store in string type, else (int/float/double) -> extract all, check - if all
         # ints, store in int, else in double
         # raise error if field with such name exists
-        pass
+        self.feature_consistency[extractor.__name__] = True
+        return None
 
     def extract_feature_dependent_feature(self, extractor, feature_names_and_types: tuple, *args, verbose: int=0,
                                           **kwargs):
@@ -75,7 +78,8 @@ class DataSet(object):
         is formed and passed to the extractor
         """
         #
-        pass
+        self.feature_consistency[extractor.__name__] = True
+        return None
 
     def mutate_feature(self, mutator, feature_names_and_types: tuple, *args, verbose: int=0, **kwargs):
         """
@@ -147,3 +151,10 @@ class DataSet(object):
         """
         for record_id in range(self.total_records):
             yield self.get_single_data_record(record_id, feature_names)
+
+    def check_feature_consistency(self, feature_names: tuple=()):
+        """
+        check that features exist for each and every data record, if feature_names == () - run checks for every feature
+        """
+        #check, check, check
+        return self.feature_consistency
