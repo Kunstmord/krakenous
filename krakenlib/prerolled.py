@@ -8,6 +8,7 @@ from csv import reader
 from os.path import join, isfile
 from os import walk
 from krakenlib.dataset import DataSet
+from krakenlib.errors import OverwriteError
 
 
 def csv_tentacle(path_to_file, id_column_number, missing_element=-1, custom_mapping: list=None):
@@ -40,9 +41,9 @@ def add_labels(dataset: DataSet, id_field_name: str, labels, labels_name: str='l
     """
     # if overwrite_existing is False and dataset.check_feature_existence(labels_name) is True:
     #     raise someError
-
+    if overwrite_existing is False and dataset.check_feature_existence(labels_name) is True:
+        raise OverwriteError(labels_name)
     inserts = 0
-
     for data_record in dataset.yield_data_records(('id', id_field_name)):
         for single_label in labels:
             if data_record['id_field_name'] in single_label[0]:
