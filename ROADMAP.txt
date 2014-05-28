@@ -1,0 +1,15 @@
+A more detailed roadmap file (compared to what's in README.txt).
+
+Planned additions (backwards compatible):
+1) Somehow allow for threading/multiprocessing support in feature_extraction (rewrite all current extracts
+as base_extract_... applied to all data records, versions for multithreading/multiprocessing do the same but perform
+everything on a batch. A function to check whether a feature exists for each data record also needs to be written.
+And perhaps a simple function to calculate batch amount (just so that the user can write:
+for i in range(dataset.batch_amount(batch_size=2000))?
+2) PostgresQL support (allows one to properly store arrays, JSON data, etc.)
+
+Planned changes (backwards incompatible):
+
+Planned removals (backwards incompatible):
+
+Planned merges of functionality (backwards incompatible):
