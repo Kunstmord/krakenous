@@ -21,6 +21,7 @@ class DataSet(object):
 
     def update_metadata(self, new_metadata: dict):
         """
+        FINISHED
         Keep this simple - overwrite any metadata with same key names
         """
         if self.metadata is {}:
@@ -28,35 +29,39 @@ class DataSet(object):
         else:
             self.metadata.update(new_metadata)
         return None
-        # for mdata in metadata:
-        #     setattr(self, ...)
 
-    def get_all_metadata(self) -> dict:
-        return self.metadata
-
-    def get_metadata(self, keys: tuple) -> dict:
+    def get_metadata(self, keys: tuple=()) -> dict:
+        """
+        FINISHED
+        """
         result_dict = {}
-        for key in keys:
-            if key in self.metadata:
-                result_dict[key] = self.metadata[key]
-        return result_dict
+        if keys == ():
+            return self.metadata
+        else:
+            for key in keys:
+                if key in self.metadata:
+                    result_dict[key] = self.metadata[key]
+            return result_dict
 
-    def populate(self, tentacle, *args, **kwargs):
+    def populate(self, tentacle, *args, **kwargs) -> int:
         """
         tentacle is a generator, returns a dictionary of stuff
         meta - global path? (for files in folder) -> THINK
         """
+        records_added = 0
         for i in tentacle(*args, **kwargs):
             self.append_data_record(i)
-        return None
+            records_added += 1
+        self.total_records = records_added
+        return records_added
 
     def append_data_record(self, data_record: dict):
         """
         do not write id field! (if exists in dict)
         """
-        pass
+        self.total_records += 1
 
-    def insert_single(self, id, feature_name, data, overwrite_existing: bool=False):
+    def insert_single(self, record_id, feature_name, data, overwrite_existing: bool=False):
         """
         insert a single value (data) for a specific id
         """
@@ -131,14 +136,14 @@ class DataSet(object):
         """
         pass
 
-    def return_feature_names(self):
+    def return_feature_names(self) -> list:
         """
         return a list of tuples (<column_name>, <length>) - if number, length = 1, if list/np-array, length
         if string - what if it's a string? -1?
         """
         pass
 
-    def get_single_data_record(self, record_id, column_names: tuple):
+    def get_single_data_record(self, record_id, column_names: tuple) -> dict:
         """
         returns a dict
         """
@@ -152,7 +157,7 @@ class DataSet(object):
         for record_id in range(self.total_records):
             yield self.get_single_data_record(record_id, feature_names)
 
-    def check_feature_consistency(self, feature_names: tuple=()):
+    def check_feature_consistency(self, feature_names: tuple=()) -> dict:
         """
         check that features exist for each and every data record, if feature_names == () - run checks for every feature
         """
