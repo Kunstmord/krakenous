@@ -4,6 +4,7 @@ __license__ = "GPLv3"
 # if you want to return labels, write your own return_feature('label')
 from krakenlib.errors import *
 
+
 class DataSet(object):
     def __init__(self, path: str, backend: str, metadata: dict=None):
         self.path = path
