@@ -49,6 +49,10 @@ def add_labels(dataset: DataSet, id_field_name: str, labels, labels_name: str='l
             if data_record['id_field_name'] in single_label[0]:
                 dataset.insert_single(data_record['id'], labels_name, single_label[1], True)
                 inserts += 1
+    if dataset.total_records - inserts == 0:
+        dataset.feature_consistency[labels_name] = True
+    else:
+        dataset.feature_consistency[labels_name] = False
     return dataset.total_records - inserts
 
 
