@@ -11,3 +11,12 @@ class UnsupportedOperation(Exception):
         
     def __str__(self):
         return 'Operation ' + self.operation + ' not supported for ' + self.backend + ' backend'
+
+
+class OverwriteError(Exception):
+    def __init__(self, to_be_overwritten_name: str):
+        Exception.__init__(self)
+        self.to_be_overwritten_name = to_be_overwritten_name
+
+    def __str__(self):
+        return 'Could not overwrite "' + self.to_be_overwritten_name + '"'
