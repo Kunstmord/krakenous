@@ -1,12 +1,13 @@
 __author__ = 'George Oblapenko, Viktor Evstratov'
 __license__ = "GPLv3"
-# and what about converters?
 # if you want to return labels, write your own return_feature('label')
-from krakenlib.errors import *
+from krakenlib.errors import UnsupportedOperation, UnknownBackend
 
 
 class DataSet(object):
     def __init__(self, path: str, backend: str, metadata: dict=None):
+        if backend not in ('sqlite', 'pickle'):
+            raise UnknownBackend(backend)
         self.path = path
         self.backend = backend
         self.total_records = 0
@@ -16,7 +17,6 @@ class DataSet(object):
         else:
             self.metadata = metadata
         self.names = ()  # a tuple of all column names!
-        # add backend checking here! ('sqlite', 'mongodb', 'csv', 'pickle')
         # load stuff from backend!
 
     def update_metadata(self, new_metadata: dict):
