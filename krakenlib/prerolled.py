@@ -8,7 +8,7 @@ from csv import reader
 from os.path import join, isfile
 from os import walk
 from krakenlib.dataset import DataSet
-from krakenlib.errors import OverwriteError
+from krakenlib.errors import OverwriteError, UnknownBackend
 
 
 def csv_tentacle(path_to_file, id_column_number, missing_element=-1, custom_mapping: list=None):
@@ -60,12 +60,15 @@ def dump_dataset(dataset: DataSet, dump_path: str, dump_backend: str, column_nam
     """
     allow copying only of specified column_names
     """
-    new_dataset = DataSet(dump_path, dump_backend)
-    if copy_meta is True:
-        new_dataset.metadata = dataset.metadata
-    for data_record in dataset.yield_data_records(column_names):
-        new_dataset.append_data_record(data_record)
-    return None
+    if dump_backend not in ('sqlite', 'pickle', 'csv'):
+        raise UnknownBackend(dump_backend)
+    else:
+        new_dataset = DataSet(dump_path, dump_backend)
+        if copy_meta is True:
+            new_dataset.metadata = dataset.metadata
+        for data_record in dataset.yield_data_records(column_names):
+            new_dataset.append_data_record(data_record)
+        return None
 
 
 def copy_to_dataset(dataset1: DataSet, dataset2: DataSet, overwrite: bool=False):
