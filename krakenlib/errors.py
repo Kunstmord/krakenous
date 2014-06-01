@@ -20,3 +20,12 @@ class OverwriteError(Exception):
 
     def __str__(self):
         return 'Could not overwrite "' + self.to_be_overwritten_name + '"'
+
+
+class UnknownBackend(Exception):
+    def __init__(self, backend_name: str):
+        Exception.__init__(self)
+        self.backend_name = backend_name
+
+    def __str__(self):
+        return 'Unkown backend "' + self.backend_name + '"'
