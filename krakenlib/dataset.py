@@ -1,7 +1,7 @@
 __author__ = 'George Oblapenko, Viktor Evstratov'
 __license__ = "GPLv3"
 # if you want to return labels, write your own return_feature('label')
-from krakenlib.errors import UnsupportedOperation, UnknownBackend
+from krakenlib.errors import UnsupportedOperation, UnknownBackend, DoesNotExist
 
 
 class DataSet(object):
@@ -22,7 +22,6 @@ class DataSet(object):
     def update_metadata(self, new_metadata: dict):
         """
         FINISHED
-        Keep this simple - overwrite any metadata with same key names
         """
         if self.metadata is {}:
             self.metadata = new_metadata
@@ -34,10 +33,10 @@ class DataSet(object):
         """
         FINISHED
         """
-        result_dict = {}
         if keys == ():
             return self.metadata
         else:
+            result_dict = {}
             for key in keys:
                 if key in self.metadata:
                     result_dict[key] = self.metadata[key]
@@ -108,7 +107,7 @@ class DataSet(object):
         #     raise some error
         pass
 
-    def check_feature_existence(self, feature_name: str):
+    def check_feature_existence(self, feature_name: str) -> bool:
         return False
 
     def return_single_feature(self, feature_name: str, convert_numpy: bool=False, start_id: int=0, end_id: int=-1):
@@ -119,7 +118,7 @@ class DataSet(object):
         pass
 
     def return_multiple_features(self, feature_names: tuple, convert_numpy: bool=False,
-                                 start_id: int=0, end_id: int=-1):
+                                 start_id: int=0, end_id: int=-1) -> list:
         """
         if convert_numpy = false, returns list of tuples - (feature_name, feature)
         else returns a single enormous array
@@ -149,13 +148,30 @@ class DataSet(object):
         """
         pass
 
-    def yield_data_records(self, feature_names: tuple=()):
+    def yield_data_records(self, column_names: tuple=()) -> dict:
         """
+        FINISHED
         yield a datarecord - dict? {'id': id, 'feat1':....}
         return only what is specified in column_names; if () - return everything
         """
         for record_id in range(self.total_records):
-            yield self.get_single_data_record(record_id, feature_names)
+            yield self.get_single_data_record(record_id, column_names)
+
+    def return_id_filter_by_feature(self, feature_name: str, filter_function, *args, **kwargs) -> list:
+        """
+        Need to check consistency??
+        Returns a list of ids of data records for which the feature specified by feature_name satisfies
+        a condition set by filter_function(feature_name, *args, **kwargs) (the filter_function should
+        return True if the condition is satisfied, False otherwise)
+        """
+        if self.check_feature_existence(feature_name) is False:
+            raise DoesNotExist('Feature', feature_name)
+        else:
+            result = []
+            for data_record in self.yield_data_records(('id', feature_name,)):
+                if filter_function(data_record[feature_name], *args, **kwargs) is True:
+                    result.append(data_record['id'])
+            return result
 
     def check_feature_consistency(self, feature_names: tuple=()) -> dict:
         """
