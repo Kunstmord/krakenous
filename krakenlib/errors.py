@@ -29,3 +29,13 @@ class UnknownBackend(Exception):
 
     def __str__(self):
         return 'Unkown backend "' + self.backend_name + '"'
+
+
+class DoesNotExist(Exception):
+    def __init__(self, base_name: str, name: str):
+        Exception.__init__(self)
+        self.base_name = base_name
+        self.name = name
+
+    def __str__(self):
+        return self.base_name + ' with name ' + self.name + ' does not exist'
