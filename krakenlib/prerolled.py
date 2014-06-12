@@ -39,9 +39,7 @@ def add_labels(dataset: DataSet, id_field_name: str, labels, labels_name: str='l
     labels - iterable of iterables - ((some_id, label), ...)
     return difference between added and not_added?
     """
-    # if overwrite_existing is False and dataset.check_feature_existence(labels_name) is True:
-    #     raise someError
-    if overwrite_existing is False and dataset.check_feature_existence(labels_name) is True:
+    if overwrite_existing is False and dataset.feature_exists_global(labels_name) is True:
         raise OverwriteError(labels_name)
     inserts = 0
     for data_record in dataset.yield_data_records(('id', id_field_name)):
@@ -49,21 +47,17 @@ def add_labels(dataset: DataSet, id_field_name: str, labels, labels_name: str='l
             if data_record['id_field_name'] in single_label[0]:
                 dataset.insert_single(data_record['id'], labels_name, single_label[1], True)
                 inserts += 1
-    if dataset.total_records - inserts == 0:
-        dataset.feature_consistency[labels_name] = True
-    else:
-        dataset.feature_consistency[labels_name] = False
     return dataset.total_records - inserts
 
 
-def dump_dataset(dataset: DataSet, dump_path: str, dump_backend: str, column_names: tuple=(), copy_meta: bool=True):
+def dump_dataset(dataset: DataSet, db_data: dict, dump_backend: str, column_names: tuple=(), copy_meta: bool=True):
     """
     allow copying only of specified column_names
     """
     if dump_backend not in ('sqlite', 'pickle', 'csv'):
         raise UnknownBackend(dump_backend)
     else:
-        new_dataset = DataSet(dump_path, dump_backend)
+        new_dataset = DataSet(dump_backend, db_data)
         if copy_meta is True:
             new_dataset.metadata = dataset.metadata
         for data_record in dataset.yield_data_records(column_names):
