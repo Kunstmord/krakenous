@@ -25,6 +25,12 @@ def numpy_feature(add_data, add_metadata):
 
 class TestShelve(unittest.TestCase):
     def setUp(self):
+        """
+        This creates a DataSet which uses the shelve backend. It also creates a folder with 10 files (named 0 to 9)
+        to use with the folder_tentacle (if a testfolder already exists, this just reaches inside it and grabs what's
+        there)
+        :return:
+        """
         self.dataset = DataSet('shelve', {'shelve_path': 'testshelve'})  # we will use the folder tentacle for testing
         if self.dataset.total_records == 0:
             if not os.path.isdir('testfolder'):
