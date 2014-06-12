@@ -9,5 +9,5 @@ setup(name='krakenlib',
       license="GPL",
       packages=['krakenlib'],
       package_dir={'krakenlib': 'krakenlib'},
-      requires=['numpy', 'scipy'],
+      requires=['numpy'],
       )
