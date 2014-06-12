@@ -29,3 +29,7 @@ class ProtectedField(Exception):
 
 class KrakenlibException(Exception):
     pass
+
+
+class EmptyDataSet(Exception):
+    pass
