@@ -4,24 +4,23 @@ __license__ = "GPLv3"
 # _safe versions (which do not check for fields named 'id' or other fields that are protected? Store protected
 # fields in self.metadata?) And check otherwise?
 from krakenlib.errors import UnsupportedOperation, UnknownBackend, DoesNotExist, DataPropertyNameCollision, \
-    ProtectedField, KrakenlibException
+    ProtectedField, KrakenlibException, EmptyDataSet
 import os.path
 
 
 class DataSet(object):
     def __init__(self, backend_name: str, db_data: dict, metadata: dict=None):
+        self.total_records = 0
         if backend_name not in ('sqlite', 'shelve'):
             raise UnknownBackend('Unknown backend ' + backend_name)
         elif backend_name == 'shelve':
             global backend
             import krakenlib.backend_shelve as backend
-            # if not os.path.isfile(db_data['shelve_path']):  # nothing exists
-            #     backend.create_empty(db_data)
-
-            # counting of records?
+            if os.path.isfile(db_data['shelve_path'] + '.db'):  # shelve makes files end in .db
+                self.total_records = backend.data_records_amount(db_data)
         self.db_data = db_data
         self.backend_name = backend_name
-        self.total_records = 0
+
         # self.feature_consistency = {}
         if metadata is None:
             self.metadata = {}
@@ -59,20 +58,20 @@ class DataSet(object):
 
     def append_data_record(self, data_record: dict):
         """
-        do not write id field! (if exists in dict)
+        do not write id field! (if exists in dict) (doesn't concern shelve)
         """
         # if db is None:
         if self.backend_name == 'shelve':
             db = backend.open_db(self.db_data)
-        self.total_records += 1
 
         for data_entry in data_record:
-            backend.write_data(db, self.total_records, data_entry, data_record[data_entry])
+            backend.write_data(db, self.total_records + 1, data_entry, data_record[data_entry])
+        self.total_records += 1
         backend.close_db(db)
 
     def _append_data_record_open(self, data_record: dict, db):
         """
-        do not write id field! (if exists in dict)
+        do not write id field! (if exists in dict) (doesn't concern shelve)
         """
         self.total_records += 1
 
@@ -91,12 +90,14 @@ class DataSet(object):
         backend.write_data(db, record_id, feature_name, data)
         backend.close_db(db)
 
-    def extract_feature(self, extractor, column_names: tuple, metadata_names: tuple, *args, verbose: int=0,
-                        writeback: int=0, **kwargs):
+    def extract_feature(self, extractor, *args, column_names: tuple=(), metadata_names: tuple=(), verbose: int=0,
+                        writeback: int=0, overwrite_feature: bool=False, **kwargs):
         # what about SQL column types? if backend=sqlite -> extract for first data record ->
         # self.feature_consistency[extractor.__name__] = True
+        if self.total_records == 0:
+            raise EmptyDataSet('The dataset is empty!')
         extractor_name = extractor.__name__
-        if self.check_global_feature_existence(extractor_name) is True:
+        if overwrite_feature is False and self.feature_exists_global(extractor_name) is True:
             raise DataPropertyNameCollision('Feature with name "' + extractor_name + '" already exists')
         if extractor_name == 'id':
             raise ProtectedField('Cannot write to field "id"')
@@ -110,33 +111,62 @@ class DataSet(object):
             additional_data = {}
             additional_metadata = {}
             for column_name in column_names:
-                additional_data[column_name] = db.read_data(db, record_id + 1, column_name)
+                additional_data[column_name] = backend.read_data(db, record_id + 1, column_name)
             for metadata_name in metadata_names:
                 additional_metadata[metadata_name] = self.metadata[metadata_name]
             backend.write_data(db, record_id + 1, extractor_name, extractor(additional_data, additional_metadata,
                                                                             *args, **kwargs))
-            if verbose != 0 and self.total_records % verbose == 0:
+            if verbose != 0 and record_id % verbose == 0:
                 print(record_id + 1)
-            if writeback != 0 and self.total_records % writeback == 0:
+            if writeback != 0 and record_id % writeback == 0:
                 backend.commit_db(db)
         backend.close_db(db)
 
-    def mutate_feature(self, mutator, feature_names_and_types: tuple, *args, verbose: int=0, **kwargs):
-        """
-        do something with the data in a feature, and write it to the same column (basically, a wrapper for
-        extract_feature_dependent_feature -> delete old feature -> rename extracted feature)
-        sql -> what if the mutated feature is of a new type? string -> float?
-        """
-        pass
+    # def mutate_feature(self, mutator, feature_names_and_types: tuple, *args, verbose: int=0, **kwargs):
+    #     """
+    #     do something with the data in a feature, and write it to the same column (basically, a wrapper for
+    #     extract_feature -> delete old feature -> rename extracted feature)
+    #     sql -> what if the mutated feature is of a new type? string -> float?
+    #     """
+    #     pass
 
-    def delete_feature(self, feature_name: str):
+    def delete_feature(self, feature_name: str, writeback: int=0):
+        if self.total_records == 0:
+            raise EmptyDataSet('The dataset is empty!')
         if self.backend_name == 'sqlite':
             raise UnsupportedOperation('Cannot delete feature when using a sqlite backend')
         else:
-            return 1
+            if self.backend_name == 'shelve':
+                if writeback != 0:
+                    db = backend.open_db(self.db_data, True)
+                else:
+                    db = backend.open_db(self.db_data, False)
+                for record_id in range(self.total_records):
+                    backend.delete_data(db, record_id + 1, feature_name)
+                    if writeback != 0 and record_id % writeback == 0:
+                        backend.commit_db(db)
+            backend.close_db(db)
 
-    def rename_feature(self, original_feature_name: str, new_feature_name: str, overwrite_existing: bool=False):
-        pass
+    def rename_feature(self, original_feature_name: str, new_feature_name: str, overwrite_existing: bool=False,
+                       writeback: int=0):
+        if self.total_records == 0:
+            raise EmptyDataSet('The dataset is empty!')
+        if overwrite_existing is False and self.feature_exists_global(new_feature_name):
+            raise DataPropertyNameCollision('Feature with name "' + new_feature_name + '" already exists')
+
+        if self.backend_name == 'shelve':
+            if writeback != 0:
+                db = backend.open_db(self.db_data, True)
+            else:
+                db = backend.open_db(self.db_data, False)
+            for record_id in range(self.total_records):
+                backend.write_data(db, record_id + 1, new_feature_name, backend.read_data(db, record_id + 1,
+                                                                                          original_feature_name))
+                backend.delete_data(db, record_id + 1, original_feature_name)
+                if writeback != 0 and record_id % writeback == 0:
+                    backend.commit_db(db)
+        backend.close_db(db)
+        # pass
 
     def force_write_feature(self, feature_name: str, feature: list, writeback: int=0):
         if len(feature) != self.total_records:
@@ -155,24 +185,22 @@ class DataSet(object):
                     backend.commit_db(db)
             backend.close_db(db)
 
-    def check_feature_existence(self, record_id: int, feature_name: str) -> bool:
+    def feature_exists(self, record_id: int, feature_name: str) -> bool:
         if self.backend_name == 'shelve':
             db = backend.open_db(self.db_data, False)
         feature_exists = backend.feature_exists(db, record_id, feature_name)
         backend.close_db(db)
         return feature_exists
 
-
-    def _check_feature_existence_open(self, record_id: int, feature_name: str, db) -> bool:
+    def _feature_exists_open(self, record_id: int, feature_name: str, db) -> bool:
         feature_exists = backend.feature_exists(db, record_id, feature_name)
         return feature_exists
 
-
-    def check_global_feature_existence(self, feature_name: str) -> bool:
+    def feature_exists_global(self, feature_name: str) -> bool:
         if self.backend_name == 'shelve':
             db = backend.open_db(self.db_data, False)
         for record_id in range(self.total_records):
-            if self._check_feature_existence_open(record_id + 1, feature_name, db) is True:
+            if self._feature_exists_open(record_id + 1, feature_name, db) is True:
                 backend.close_db(db)
                 return True
         backend.close_db(db)
@@ -196,21 +224,19 @@ class DataSet(object):
         """
         pass
 
-    def return_feature_single_record(self, feature_name: str, search_for, search_by_field_name: str='id',
-                                     convert_numpy: bool=False):
-        """
-        return feature for a specific data record, which is the first data record for which the column
-        specified by 'search_by_field_name' is equal to the 'search_for' parameter
-        """
-        pass
-
     def return_feature_names(self) -> list:
         """
         return a list of tuples (<column_name>, <length>) - if number, length = 1, if list/np-array, length
         if string - what if it's a string? -1?
         assume that the first element has all the features? or combine all? or return all + all separate variations?
         """
-        pass
+        if self.total_records == 0:
+            raise EmptyDataSet('The dataset is empty!')
+        if self.backend_name == 'shelve':
+            db = backend.open_db(self.db_data)
+        return_list = backend.feature_names(db, 1)
+        backend.close_db(db)
+        return return_list
 
     def return_single_data_record(self, record_id, column_names: tuple=()) -> dict:
         """
@@ -220,20 +246,21 @@ class DataSet(object):
         if self.backend_name == 'shelve':
             db = backend.open_db(self.db_data)
         if column_names == ():
-            return backend.read_all_data(db, record_id)
+            result_dict = backend.read_all_data(db, record_id)
         else:
             for column_name in column_names:
-                result_dict[column_name] = backend.read_data(record_id, column_name)
-            return result_dict
+                result_dict[column_name] = backend.read_data(db, record_id, column_name)
+        backend.close_db(db)
+        return result_dict
 
     def yield_data_records(self, column_names: tuple=()) -> dict:
         """
         FINISHED
-        yield a datarecord - dict? {'id': id, 'feat1':....}
+        yield a datarecord - dict? does not return id? (right now it doesn't, should it? probably)
         return only what is specified in column_names; if () - return everything
         """
         for record_id in range(self.total_records):
-            yield self.return_single_data_record(record_id, column_names)
+            yield self.return_single_data_record(record_id + 1, column_names)
 
     def return_id_filter_by_feature(self, feature_name: str, filter_function, *args, **kwargs) -> list:
         """
@@ -242,7 +269,7 @@ class DataSet(object):
         a condition set by filter_function(feature_name, *args, **kwargs) (the filter_function should
         return True if the condition is satisfied, False otherwise)
         """
-        if self.check_global_feature_existence(feature_name) is False:
+        if self.feature_exists_global(feature_name) is False:
             raise DoesNotExist('Feature "' + feature_name + '" does not exist')
         else:
             result = []
@@ -250,10 +277,3 @@ class DataSet(object):
                 if filter_function(data_record[feature_name], *args, **kwargs) is True:
                     result.append(data_record['id'])
             return result
-
-    # def check_feature_consistency(self, feature_names: tuple=()) -> dict:
-    #     """
-    #     check that features exist for each and every data record, if feature_names == () - run checks for every feature
-    #     """
-    #     #check, check, check
-    #     return self.feature_consistency
