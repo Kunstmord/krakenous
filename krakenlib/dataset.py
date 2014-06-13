@@ -82,11 +82,12 @@ class DataSet(object):
         """
         insert a single value (data) for a specific id
         """
-        if self.backend_name == 'shelve':
-            if overwrite_existing is True:
-                db = backend.open_db(self.db_data, True)
-            else:
-                db = backend.open_db(self.db_data, False)
+        # if self.backend_name == 'shelve':
+        # if overwrite_existing i
+        if overwrite_existing is True:
+            db = backend.open_db(self.db_data, True)
+        else:
+            db = backend.open_db(self.db_data, False)
         backend.write_data(db, record_id, feature_name, data)
         backend.close_db(db)
 
@@ -101,11 +102,11 @@ class DataSet(object):
             raise DataPropertyNameCollision('Feature with name "' + extractor_name + '" already exists')
         if extractor_name == 'id':
             raise ProtectedField('Cannot write to field "id"')
-        if self.backend_name == 'shelve':
-            if writeback != 0:
-                db = backend.open_db(self.db_data, True)
-            else:
-                db = backend.open_db(self.db_data, False)
+        # if self.backend_name == 'shelve':
+        if writeback != 0:
+            db = backend.open_db(self.db_data, True)
+        else:
+            db = backend.open_db(self.db_data, False)
 
         for record_id in range(self.total_records):
             additional_data = {}
@@ -122,29 +123,21 @@ class DataSet(object):
                 backend.commit_db(db)
         backend.close_db(db)
 
-    # def mutate_feature(self, mutator, feature_names_and_types: tuple, *args, verbose: int=0, **kwargs):
-    #     """
-    #     do something with the data in a feature, and write it to the same column (basically, a wrapper for
-    #     extract_feature -> delete old feature -> rename extracted feature)
-    #     sql -> what if the mutated feature is of a new type? string -> float?
-    #     """
-    #     pass
-
     def delete_feature(self, feature_name: str, writeback: int=0):
         if self.total_records == 0:
             raise EmptyDataSet('The dataset is empty!')
         if self.backend_name == 'sqlite':
             raise UnsupportedOperation('Cannot delete feature when using a sqlite backend')
         else:
-            if self.backend_name == 'shelve':
-                if writeback != 0:
-                    db = backend.open_db(self.db_data, True)
-                else:
-                    db = backend.open_db(self.db_data, False)
-                for record_id in range(self.total_records):
-                    backend.delete_data(db, record_id + 1, feature_name)
-                    if writeback != 0 and record_id % writeback == 0:
-                        backend.commit_db(db)
+            # if self.backend_name == 'shelve':
+            if writeback != 0:
+                db = backend.open_db(self.db_data, True)
+            else:
+                db = backend.open_db(self.db_data, False)
+            for record_id in range(self.total_records):
+                backend.delete_data(db, record_id + 1, feature_name)
+                if writeback != 0 and record_id % writeback == 0:
+                    backend.commit_db(db)
             backend.close_db(db)
 
     def rename_feature(self, original_feature_name: str, new_feature_name: str, overwrite_existing: bool=False,
@@ -186,8 +179,8 @@ class DataSet(object):
             backend.close_db(db)
 
     def feature_exists(self, record_id: int, feature_name: str) -> bool:
-        if self.backend_name == 'shelve':
-            db = backend.open_db(self.db_data, False)
+        # if self.backend_name == 'shelve':
+        db = backend.open_db(self.db_data)
         feature_exists = backend.feature_exists(db, record_id, feature_name)
         backend.close_db(db)
         return feature_exists
@@ -197,8 +190,7 @@ class DataSet(object):
         return feature_exists
 
     def feature_exists_global(self, feature_name: str) -> bool:
-        if self.backend_name == 'shelve':
-            db = backend.open_db(self.db_data, False)
+        db = backend.open_db(self.db_data)
         for record_id in range(self.total_records):
             if self._feature_exists_open(record_id + 1, feature_name, db) is True:
                 backend.close_db(db)
@@ -232,8 +224,8 @@ class DataSet(object):
         """
         if self.total_records == 0:
             raise EmptyDataSet('The dataset is empty!')
-        if self.backend_name == 'shelve':
-            db = backend.open_db(self.db_data)
+        # if self.backend_name == 'shelve':
+        db = backend.open_db(self.db_data)
         return_list = backend.feature_names(db, 1)
         backend.close_db(db)
         return return_list
@@ -243,8 +235,8 @@ class DataSet(object):
         returns a dict
         """
         result_dict = {}
-        if self.backend_name == 'shelve':
-            db = backend.open_db(self.db_data)
+        # if self.backend_name == 'shelve':
+        db = backend.open_db(self.db_data)
         if column_names == ():
             result_dict = backend.read_all_data(db, record_id)
         else:
