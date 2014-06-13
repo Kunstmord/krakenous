@@ -3,9 +3,9 @@ __license__ = "GPLv3"
 # if you want to return labels, write your own return_feature('label')
 # _safe versions (which do not check for fields named 'id' or other fields that are protected? Store protected
 # fields in self.metadata?) And check otherwise?
-from krakenlib.errors import UnsupportedOperation, UnknownBackend, DoesNotExist, DataPropertyNameCollision, \
-    ProtectedField, KrakenlibException, EmptyDataSet
+from krakenlib.errors import *
 import os.path
+import numpy as np
 
 
 class DataSet(object):
@@ -82,14 +82,12 @@ class DataSet(object):
         """
         insert a single value (data) for a specific id
         """
-        # if self.backend_name == 'shelve':
-        # if overwrite_existing i
-        if overwrite_existing is True:
-            db = backend.open_db(self.db_data, True)
+        if overwrite_existing is False and self.feature_exists(record_id, feature_name) is True:
+            raise DataPropertyNameCollision('Feature with name "' + feature_name + '" already exists')
         else:
-            db = backend.open_db(self.db_data, False)
-        backend.write_data(db, record_id, feature_name, data)
-        backend.close_db(db)
+            db = backend.open_db(self.db_data)
+            backend.write_data(db, record_id, feature_name, data)
+            backend.close_db(db)
 
     def extract_feature(self, extractor, *args, column_names: tuple=(), metadata_names: tuple=(), verbose: int=0,
                         writeback: int=0, overwrite_feature: bool=False, **kwargs):
@@ -102,7 +100,6 @@ class DataSet(object):
             raise DataPropertyNameCollision('Feature with name "' + extractor_name + '" already exists')
         if extractor_name == 'id':
             raise ProtectedField('Cannot write to field "id"')
-        # if self.backend_name == 'shelve':
         if writeback != 0:
             db = backend.open_db(self.db_data, True)
         else:
@@ -129,7 +126,6 @@ class DataSet(object):
         if self.backend_name == 'sqlite':
             raise UnsupportedOperation('Cannot delete feature when using a sqlite backend')
         else:
-            # if self.backend_name == 'shelve':
             if writeback != 0:
                 db = backend.open_db(self.db_data, True)
             else:
@@ -159,7 +155,6 @@ class DataSet(object):
                 if writeback != 0 and record_id % writeback == 0:
                     backend.commit_db(db)
         backend.close_db(db)
-        # pass
 
     def force_write_feature(self, feature_name: str, feature: list, writeback: int=0):
         if len(feature) != self.total_records:
@@ -181,12 +176,12 @@ class DataSet(object):
     def feature_exists(self, record_id: int, feature_name: str) -> bool:
         # if self.backend_name == 'shelve':
         db = backend.open_db(self.db_data)
-        feature_exists = backend.feature_exists(db, record_id, feature_name)
+        feature_exists = backend.data_exists(db, record_id, feature_name)
         backend.close_db(db)
         return feature_exists
 
     def _feature_exists_open(self, record_id: int, feature_name: str, db) -> bool:
-        feature_exists = backend.feature_exists(db, record_id, feature_name)
+        feature_exists = backend.data_exists(db, record_id, feature_name)
         return feature_exists
 
     def feature_exists_global(self, feature_name: str) -> bool:
@@ -198,18 +193,68 @@ class DataSet(object):
         backend.close_db(db)
         return False
 
-    def return_single_feature(self, feature_name: str, convert_numpy: bool=False, start_id: int=0, end_id: int=-1):
+    def return_single_feature(self, feature_name: str, start_id: int=1, end_id: int=-1):
+        if self.total_records == 0:
+            raise EmptyDataSet('The dataset is empty!')
+        if self.feature_exists_global(feature_name) is False:
+            raise DoesNotExist('Feature "' + feature_name + '" does not exist')
+        db = backend.open_db(self.db_data)
+        if end_id == -1:
+            end_id = self.total_records
+        else:
+            if end_id > self.total_records:
+                raise IncorrectRange('Incorrect range, end_id=' + str(end_id), ', while total_records='
+                                     + str(self.total_records))
+        if start_id < 0 or start_id > end_id:
+            raise IncorrectRange('start_id cannot be less than 0 or bigger than end_id')
+        result = []
+        for record_id in range(start_id, end_id + 1):
+            result.append(backend.read_data(db, record_id, feature_name))
+        backend.close_db(db)
+        return result
 
-        """
-        add start_id / end_id
-        end_id = -1 means return EVERYTHING in (start_id, end_id)
-        """
-        pass
+    def return_single_feature_numpy(self, feature_name: str, start_id: int=1, end_id: int=-1):
+        if self.total_records == 0:
+            raise EmptyDataSet('The dataset is empty!')
+        if self.feature_exists_global(feature_name) is False:
+            raise DoesNotExist('Feature "' + feature_name + '" does not exist')
+        db = backend.open_db(self.db_data)
+        if end_id == -1:
+            end_id = self.total_records
+        else:
+            if end_id > self.total_records:
+                raise IncorrectRange('Incorrect range, end_id=' + str(end_id), ', while total_records='
+                                     + str(self.total_records))
+        if start_id < 0 or start_id > end_id:
+            raise IncorrectRange('start_id cannot be less than 0 or bigger than end_id')
+        feature_len = backend.data_length_and_type(db, 1, feature_name)
+        if feature_len[0] == 'string' or feature_len[0] <= 0:
+            raise NonNumericFeatureType('Cannot convert column ' + feature_name + ' to numpy array')
+        else:
+            if feature_len[1] == 'number':
+                result = np.zeros((self.total_records + 1 - start_id, 1,))
+            else:
+                result = np.zeros((self.total_records + 1 - start_id, feature_len[0],))
+                if feature_len[1] != 'ndarray':
+                    try:
+                        result[0, :] = np.array(backend.read_data(db, 1, feature_name)).flatten()
+                    except ValueError:
+                        backend.close_db(db)
+                        raise NonNumericFeatureType('Cannot convert column '
+                                                    + feature_name + ' to numpy array')
+        if len(result.shape) < 2:
+            for record_id in range(start_id, end_id + 1):
+                result[record_id-start_id] = backend.read_data(db, record_id, feature_name)
+        else:
+            for record_id in range(start_id, end_id + 1):
+                result[record_id-start_id, :] = np.array(backend.read_data(db, record_id, feature_name)).flatten()
+        backend.close_db(db)
+        return result
 
     def return_multiple_features(self, feature_names: tuple, convert_numpy: bool=False,
-                                 start_id: int=0, end_id: int=-1) -> list:
+                                 start_id: int=0, end_id: int=-1):
         """
-        if convert_numpy = false, returns list of tuples - (feature_name, feature)
+        if convert_numpy = false, returns list of lists - (feature_name, feature)
         else returns a single enormous array
         add start_id / end_id
         end_id = -1 means return EVERYTHING in (start_id, end_id)
@@ -224,9 +269,8 @@ class DataSet(object):
         """
         if self.total_records == 0:
             raise EmptyDataSet('The dataset is empty!')
-        # if self.backend_name == 'shelve':
         db = backend.open_db(self.db_data)
-        return_list = backend.feature_names(db, 1)
+        return_list = backend.data_names(db, 1)
         backend.close_db(db)
         return return_list
 
@@ -235,7 +279,6 @@ class DataSet(object):
         returns a dict
         """
         result_dict = {}
-        # if self.backend_name == 'shelve':
         db = backend.open_db(self.db_data)
         if column_names == ():
             result_dict = backend.read_all_data(db, record_id)
