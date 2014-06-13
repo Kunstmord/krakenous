@@ -33,3 +33,15 @@ class KrakenlibException(Exception):
 
 class EmptyDataSet(Exception):
     pass
+
+
+class InconsistentFeatureTypes(Exception):
+    pass
+
+
+class NonNumericFeatureType(Exception):
+    pass
+
+
+class IncorrectRange(Exception):
+    pass
