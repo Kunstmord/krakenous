@@ -11,3 +11,21 @@ def is_a_number(x):
         return True
     else:
         return False
+
+
+def element_length(x):
+    result_length = -1
+    if isinstance(x, np.ndarray):
+        np_size = 1
+        for i in x.shape:
+            np_size *= i
+        result_length = (np_size, 'ndarray')
+    elif isinstance(x, list):
+        result_length = (len(x), 'list')
+    elif isinstance(x, tuple):
+        result_length = (len(x), 'tuple')
+    elif is_a_number(x):
+        result_length = (0, 'number')
+    elif isinstance(x, str):
+        result_length = ('string', 'string')
+    return result_length
