@@ -6,7 +6,7 @@ The structure is {str(id): {'feature1': feature1, ...}, ...}
 
 import shelve
 from numpy import ndarray
-from krakenlib.misc import is_a_number
+from krakenlib.misc import is_a_number, element_length
 
 
 def open_db(db_data: dict, writeback: bool=False) -> dict:
@@ -64,35 +64,31 @@ def delete_data(db: dict, record_id: int, data_name: str):
     # del db['db'][str(record_id)][data_name]
 
 
-def feature_exists(db: dict, record_id: int, feature_name: str) -> bool:
+def data_exists(db: dict, record_id: int, data_name: str) -> bool:
     if db['db'][str(record_id)] == {}:
         return False
-    elif feature_name not in db['db'][str(record_id)].keys():
+    elif data_name not in db['db'][str(record_id)].keys():
         return False
     else:
         return True
 
 
-def feature_names(db: dict, record_id: int) -> list:
+def data_names(db: dict, record_id: int) -> list:
     if db['db'][str(record_id)] == {}:
         return []
     else:
         return_list = []
         for data_name in db['db'][str(record_id)]:
-            feature_len = -1
-            if isinstance(db['db'][str(record_id)][data_name], ndarray):
-                np_size = 1
-                for i in db['db'][str(record_id)][data_name].shape:
-                    np_size *= i
-                feature_len = np_size
-            elif isinstance(db['db'][str(record_id)][data_name], list):
-                feature_len = len(db['db'][str(record_id)][data_name])
-            elif is_a_number(db['db'][str(record_id)][data_name]):
-                feature_len = 0
-            elif isinstance(db['db'][str(record_id)][data_name], str):
-                feature_len = 'string'
+            feature_len = element_length(db['db'][str(record_id)][data_name])[0]
             return_list.append((data_name, feature_len))
         return return_list
+
+
+def data_length_and_type(db: dict, record_id: int, data_name: str):
+    if db['db'][str(record_id)] == {}:
+        return -1
+    else:
+        return element_length(db['db'][str(record_id)][data_name])
 
 
 def data_records_amount(db_data: dict) -> int:
