@@ -61,7 +61,6 @@ def delete_data(db: dict, record_id: int, data_name: str):
             tmp_dict = db['db'][str(record_id)]
             del tmp_dict[data_name]
             db['db'][str(record_id)] = tmp_dict
-    # del db['db'][str(record_id)][data_name]
 
 
 def data_exists(db: dict, record_id: int, data_name: str) -> bool:
@@ -89,6 +88,12 @@ def data_length_and_type(db: dict, record_id: int, data_name: str):
         return -1
     else:
         return element_length(db['db'][str(record_id)][data_name])
+
+
+def delete_record(db: dict, record_id: int, total_records):
+    for i in range(record_id, total_records):
+        db['db'][str(record_id)] = db['db'][str(record_id + 1)]
+    del db['db'][str(total_records)]
 
 
 def data_records_amount(db_data: dict) -> int:
