@@ -24,6 +24,10 @@ def numpy_feature(add_data, add_metadata):
     return np.zeros(3)
 
 
+def numpy_feature2(add_data, add_metadata):
+    return np.ones(2)
+
+
 def string_feature(add_data, add_metadata):
     return 'test string feature'
 
@@ -54,16 +58,6 @@ class TestShelve(unittest.TestCase):
         self.dataset.extract_feature(fake_extractor, 'meaning of life', overwrite_feature=True)
         assert self.dataset.return_single_data_record(1, ('fake_extractor',))['fake_extractor'] == 'meaning of life'
         # feature overwriting works correctly
-
-    # def test_append_data_record(self):
-    #     current_records = self.dataset.total_records
-    #     self.dataset.append_data_record({'fake_extractor': 'NOT THE MEANING OF LIFE AT ALL'})
-    #     assert self.dataset.total_records == current_records + 1  # the number of records changes
-    #     assert self.dataset.return_single_data_record(current_records + 1, ('fake_extractor',))['fake_extractor']\
-    #            == 'NOT THE MEANING OF LIFE AT ALL'  # the data in the record is correct
-    #     assert self.dataset.return_single_data_record(2, ('fake_extractor',))['fake_extractor']\
-    #            != 'NOT THE MEANING OF LIFE AT ALL'  # the data in other record doesn't change
-    # This adds a data record!
 
     def test_insert_single_value(self):
         self.dataset.insert_single(5, 'extra_field', 'extra number', overwrite_existing=True)
@@ -127,7 +121,29 @@ class TestShelve(unittest.TestCase):
     def test_return_single_feature_numpy(self):
         feature = self.dataset.return_single_feature_numpy('numpy_feature')
         assert feature.shape == (self.dataset.total_records, 3,)
+        assert feature[0, 1] == 0  # converts a single feature for each record into a single numpy array correctly
+
+    def test_return_multiple_features_numpy(self):
+        self.dataset.extract_feature(numpy_feature2, overwrite_feature=True)
+        assert self.dataset.feature_exists_global('numpy_feature2') is True
+        feature = self.dataset.return_multiple_features_numpy(('numpy_feature', 'numpy_feature2',))
+        assert feature.shape == (self.dataset.total_records, 5,)
         assert feature[0, 1] == 0
+        assert feature[0, 4] == 1  # converts multiple features for each record into a single numpy array correctly
+
+    def test_append_and_delete_data_record(self):
+        current_records = self.dataset.total_records
+        self.dataset.append_data_record({'fake_extractor': 'NOT THE MEANING OF LIFE AT ALL'})
+        assert self.dataset.total_records == current_records + 1  # the number of records changes
+        assert self.dataset.return_single_data_record(current_records + 1, ('fake_extractor',))['fake_extractor']\
+               == 'NOT THE MEANING OF LIFE AT ALL'  # the data in the record is correct
+        assert self.dataset.return_single_data_record(2, ('fake_extractor',))['fake_extractor']\
+               != 'NOT THE MEANING OF LIFE AT ALL'  # the data in other record doesn't change
+        self.dataset.delete_records((self.dataset.total_records,))
+        assert self.dataset.total_records == current_records  # the number of records changes back to the original
+        assert self.dataset.return_single_data_record(current_records, ('fake_extractor',))['fake_extractor']\
+               != 'NOT THE MEANING OF LIFE AT ALL'  # the last record is correct
+
 
 if __name__ == '__main__':
     unittest.main()
