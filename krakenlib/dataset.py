@@ -63,7 +63,6 @@ class DataSet(object):
         # if db is None:
         if self.backend_name == 'shelve':
             db = backend.open_db(self.db_data)
-
         for data_entry in data_record:
             backend.write_data(db, self.total_records + 1, data_entry, data_record[data_entry])
         self.total_records += 1
@@ -91,8 +90,7 @@ class DataSet(object):
 
     def extract_feature(self, extractor, *args, column_names: tuple=(), metadata_names: tuple=(), verbose: int=0,
                         writeback: int=0, overwrite_feature: bool=False, **kwargs):
-        # what about SQL column types? if backend=sqlite -> extract for first data record ->
-        # self.feature_consistency[extractor.__name__] = True
+        # what about SQL column types?
         if self.total_records == 0:
             raise EmptyDataSet('The dataset is empty!')
         extractor_name = extractor.__name__
@@ -155,6 +153,23 @@ class DataSet(object):
                 if writeback != 0 and record_id % writeback == 0:
                     backend.commit_db(db)
         backend.close_db(db)
+
+    def delete_records(self, record_ids: tuple, writeback: int=0):
+        if self.backend_name == 'shelve':
+            if writeback != 0:
+                db = backend.open_db(self.db_data, True)
+            else:
+                db = backend.open_db(self.db_data, False)
+        if self.total_records == 0:
+            raise EmptyDataSet('The dataset is empty!')
+        for record_id in record_ids:
+            if record_id > self.total_records:
+                raise DoesNotExist('Record with id=' + str(record_id) + ' does not exist!')
+            else:
+                backend.delete_record(db, record_id, self.total_records)
+                if writeback != 0 and record_id % writeback == 0:
+                    backend.commit_db(db)
+                self.total_records -= 1
 
     def force_write_feature(self, feature_name: str, feature: list, writeback: int=0):
         if len(feature) != self.total_records:
@@ -241,18 +256,18 @@ class DataSet(object):
                     except ValueError:
                         backend.close_db(db)
                         raise NonNumericFeatureType('Cannot convert column '
-                                                    + feature_name + ' to numpy array')
+                                                    + feature_name + ' to numpy array')  # test if can convert feature,
+                    # is this even needed???
         if len(result.shape) < 2:
             for record_id in range(start_id, end_id + 1):
-                result[record_id-start_id] = backend.read_data(db, record_id, feature_name)
+                result[record_id-start_id] = backend.read_data(db, record_id, feature_name)  # is this a thing?
         else:
             for record_id in range(start_id, end_id + 1):
                 result[record_id-start_id, :] = np.array(backend.read_data(db, record_id, feature_name)).flatten()
         backend.close_db(db)
         return result
 
-    def return_multiple_features(self, feature_names: tuple, convert_numpy: bool=False,
-                                 start_id: int=0, end_id: int=-1):
+    def return_multiple_features(self, feature_names: tuple, start_id: int=0, end_id: int=-1):
         """
         if convert_numpy = false, returns list of lists - (feature_name, feature)
         else returns a single enormous array
@@ -260,6 +275,51 @@ class DataSet(object):
         end_id = -1 means return EVERYTHING in (start_id, end_id)
         """
         pass
+
+    def return_multiple_features_numpy(self, feature_names: tuple, start_id: int=1, end_id: int=-1):
+        """
+        if convert_numpy = false, returns list of lists - (feature_name, feature)
+        else returns a single enormous array
+        add start_id / end_id
+        end_id = -1 means return EVERYTHING in (start_id, end_id)
+        """
+        if self.total_records == 0:
+            raise EmptyDataSet('The dataset is empty!')
+        for feature_name in feature_names:
+            if self.feature_exists_global(feature_name) is False:
+                raise DoesNotExist('Feature "' + feature_name + '" does not exist')
+        db = backend.open_db(self.db_data)
+        if end_id == -1:
+            end_id = self.total_records
+        else:
+            if end_id > self.total_records:
+                raise IncorrectRange('Incorrect range, end_id=' + str(end_id), ', while total_records='
+                                     + str(self.total_records))
+        if start_id < 0 or start_id > end_id:
+            raise IncorrectRange('start_id cannot be less than 0 or bigger than end_id')
+
+        total_length = 0
+        lengths = []
+        for feature_name in feature_names:
+            feature_len = backend.data_length_and_type(db, 1, feature_name)
+            if feature_len[0] == 'string' or feature_len[0] <= 0:
+                raise NonNumericFeatureType('Cannot convert column ' + feature_name + ' to numpy array')
+            else:
+                total_length += feature_len[0]
+                lengths.append(feature_len[0])
+
+        if total_length > 0:
+            result = np.zeros((self.total_records + 1 - start_id, total_length))
+            for record_id in range(start_id, end_id + 1):
+                curr_len = 0
+                for name_number_pair in enumerate(feature_names):
+                    result[record_id-start_id, curr_len:curr_len+lengths[name_number_pair[0]]]\
+                        = np.array(backend.read_data(db, record_id, name_number_pair[1]))
+                    curr_len += lengths[name_number_pair[0]]
+            backend.close_db(db)
+            return result
+        else:
+            raise KrakenlibException('No features that can be fit into a numpy array found in the passed tuple')
 
     def return_feature_names(self) -> list:
         """
@@ -291,13 +351,12 @@ class DataSet(object):
     def yield_data_records(self, column_names: tuple=()) -> dict:
         """
         FINISHED
-        yield a datarecord - dict? does not return id? (right now it doesn't, should it? probably)
         return only what is specified in column_names; if () - return everything
         """
         for record_id in range(self.total_records):
             yield self.return_single_data_record(record_id + 1, column_names)
 
-    def return_id_filter_by_feature(self, feature_name: str, filter_function, *args, **kwargs) -> list:
+    def return_id_filter_by_feature(self, feature_name: str, filter_function, *args, **kwargs) -> list:  # NEEDS TESTING
         """
         Need to check consistency??
         Returns a list of ids of data records for which the feature specified by feature_name satisfies
