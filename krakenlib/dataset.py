@@ -12,7 +12,7 @@ class DataSet(object):
     def __init__(self, backend_name: str, db_data: dict, metadata: dict=None):
         self.total_records = 0
         if backend_name not in ('sqlite', 'shelve'):
-            raise UnknownBackend('Unknown backend ' + backend_name)
+            raise KrakenlibException('Unknown backend ' + backend_name)
         elif backend_name == 'shelve':
             global backend
             import krakenlib.backend_shelve as backend
@@ -82,7 +82,7 @@ class DataSet(object):
         insert a single value (data) for a specific id
         """
         if overwrite_existing is False and self.feature_exists(record_id, feature_name) is True:
-            raise DataPropertyNameCollision('Feature with name "' + feature_name + '" already exists')
+            raise KrakenlibException('Feature with name "' + feature_name + '" already exists')
         else:
             db = backend.open_db(self.db_data)
             backend.write_data(db, record_id, feature_name, data)
@@ -92,12 +92,12 @@ class DataSet(object):
                         writeback: int=0, overwrite_feature: bool=False, **kwargs):
         # what about SQL column types?
         if self.total_records == 0:
-            raise EmptyDataSet('The dataset is empty!')
+            raise KrakenlibException('The dataset is empty!')
         extractor_name = extractor.__name__
         if overwrite_feature is False and self.feature_exists_global(extractor_name) is True:
-            raise DataPropertyNameCollision('Feature with name "' + extractor_name + '" already exists')
+            raise KrakenlibException('Feature with name "' + extractor_name + '" already exists')
         if extractor_name == 'id':
-            raise ProtectedField('Cannot write to field "id"')
+            raise KrakenlibException('Cannot write to field "id"')
         if writeback != 0:
             db = backend.open_db(self.db_data, True)
         else:
@@ -120,9 +120,9 @@ class DataSet(object):
 
     def delete_feature(self, feature_name: str, writeback: int=0):
         if self.total_records == 0:
-            raise EmptyDataSet('The dataset is empty!')
+            raise KrakenlibException('The dataset is empty!')
         if self.backend_name == 'sqlite':
-            raise UnsupportedOperation('Cannot delete feature when using a sqlite backend')
+            raise KrakenlibException('Cannot delete feature when using a sqlite backend')
         else:
             if writeback != 0:
                 db = backend.open_db(self.db_data, True)
@@ -137,9 +137,9 @@ class DataSet(object):
     def rename_feature(self, original_feature_name: str, new_feature_name: str, overwrite_existing: bool=False,
                        writeback: int=0):
         if self.total_records == 0:
-            raise EmptyDataSet('The dataset is empty!')
+            raise KrakenlibException('The dataset is empty!')
         if overwrite_existing is False and self.feature_exists_global(new_feature_name):
-            raise DataPropertyNameCollision('Feature with name "' + new_feature_name + '" already exists')
+            raise KrakenlibException('Feature with name "' + new_feature_name + '" already exists')
 
         if self.backend_name == 'shelve':
             if writeback != 0:
@@ -161,10 +161,10 @@ class DataSet(object):
             else:
                 db = backend.open_db(self.db_data, False)
         if self.total_records == 0:
-            raise EmptyDataSet('The dataset is empty!')
+            raise KrakenlibException('The dataset is empty!')
         for record_id in record_ids:
             if record_id > self.total_records:
-                raise DoesNotExist('Record with id=' + str(record_id) + ' does not exist!')
+                raise KrakenlibException('Record with id=' + str(record_id) + ' does not exist!')
             else:
                 backend.delete_record(db, record_id, self.total_records)
                 if writeback != 0 and record_id % writeback == 0:
@@ -176,7 +176,7 @@ class DataSet(object):
             raise KrakenlibException('Inconsistent length (length of feature list is ' + str(len(feature)) +
                                      ', total number of records - ' + str(self.total_records))
         elif feature_name == 'id':
-            raise ProtectedField('Cannot write to field "id"')
+            raise KrakenlibException('Cannot write to field "id"')
         else:
             if writeback != 0:
                 db = backend.open_db(self.db_data, True)
@@ -189,7 +189,6 @@ class DataSet(object):
             backend.close_db(db)
 
     def feature_exists(self, record_id: int, feature_name: str) -> bool:
-        # if self.backend_name == 'shelve':
         db = backend.open_db(self.db_data)
         feature_exists = backend.data_exists(db, record_id, feature_name)
         backend.close_db(db)
@@ -210,116 +209,31 @@ class DataSet(object):
 
     def return_single_feature(self, feature_name: str, start_id: int=1, end_id: int=-1):
         if self.total_records == 0:
-            raise EmptyDataSet('The dataset is empty!')
+            raise KrakenlibException('The dataset is empty!')
         if self.feature_exists_global(feature_name) is False:
-            raise DoesNotExist('Feature "' + feature_name + '" does not exist')
+            raise KrakenlibException('Feature "' + feature_name + '" does not exist')
         db = backend.open_db(self.db_data)
         if end_id == -1:
             end_id = self.total_records
         else:
             if end_id > self.total_records:
-                raise IncorrectRange('Incorrect range, end_id=' + str(end_id), ', while total_records='
+                raise KrakenlibException('Incorrect range, end_id=' + str(end_id), ', while total_records='
                                      + str(self.total_records))
         if start_id < 0 or start_id > end_id:
-            raise IncorrectRange('start_id cannot be less than 0 or bigger than end_id')
+            raise KrakenlibException('start_id cannot be less than 0 or bigger than end_id')
         result = []
         for record_id in range(start_id, end_id + 1):
             result.append(backend.read_data(db, record_id, feature_name))
         backend.close_db(db)
         return result
 
-    def return_single_feature_numpy(self, feature_name: str, start_id: int=1, end_id: int=-1):
-        if self.total_records == 0:
-            raise EmptyDataSet('The dataset is empty!')
-        if self.feature_exists_global(feature_name) is False:
-            raise DoesNotExist('Feature "' + feature_name + '" does not exist')
-        db = backend.open_db(self.db_data)
-        if end_id == -1:
-            end_id = self.total_records
-        else:
-            if end_id > self.total_records:
-                raise IncorrectRange('Incorrect range, end_id=' + str(end_id), ', while total_records='
-                                     + str(self.total_records))
-        if start_id < 0 or start_id > end_id:
-            raise IncorrectRange('start_id cannot be less than 0 or bigger than end_id')
-        feature_len = backend.data_length_and_type(db, 1, feature_name)
-        if feature_len[0] == 'string' or feature_len[0] <= 0:
-            raise NonNumericFeatureType('Cannot convert column ' + feature_name + ' to numpy array')
-        else:
-            if feature_len[1] == 'number':
-                result = np.zeros((self.total_records + 1 - start_id, 1,))
-            else:
-                result = np.zeros((self.total_records + 1 - start_id, feature_len[0],))
-                if feature_len[1] != 'ndarray':
-                    try:
-                        result[0, :] = np.array(backend.read_data(db, 1, feature_name)).flatten()
-                    except ValueError:
-                        backend.close_db(db)
-                        raise NonNumericFeatureType('Cannot convert column '
-                                                    + feature_name + ' to numpy array')  # test if can convert feature,
-                    # is this even needed???
-        if len(result.shape) < 2:
-            for record_id in range(start_id, end_id + 1):
-                result[record_id-start_id] = backend.read_data(db, record_id, feature_name)  # is this a thing?
-        else:
-            for record_id in range(start_id, end_id + 1):
-                result[record_id-start_id, :] = np.array(backend.read_data(db, record_id, feature_name)).flatten()
-        backend.close_db(db)
-        return result
-
     def return_multiple_features(self, feature_names: tuple, start_id: int=0, end_id: int=-1):
         """
         if convert_numpy = false, returns list of lists - (feature_name, feature)
-        else returns a single enormous array
         add start_id / end_id
         end_id = -1 means return EVERYTHING in (start_id, end_id)
         """
         pass
-
-    def return_multiple_features_numpy(self, feature_names: tuple, start_id: int=1, end_id: int=-1):
-        """
-        if convert_numpy = false, returns list of lists - (feature_name, feature)
-        else returns a single enormous array
-        add start_id / end_id
-        end_id = -1 means return EVERYTHING in (start_id, end_id)
-        """
-        if self.total_records == 0:
-            raise EmptyDataSet('The dataset is empty!')
-        for feature_name in feature_names:
-            if self.feature_exists_global(feature_name) is False:
-                raise DoesNotExist('Feature "' + feature_name + '" does not exist')
-        db = backend.open_db(self.db_data)
-        if end_id == -1:
-            end_id = self.total_records
-        else:
-            if end_id > self.total_records:
-                raise IncorrectRange('Incorrect range, end_id=' + str(end_id), ', while total_records='
-                                     + str(self.total_records))
-        if start_id < 0 or start_id > end_id:
-            raise IncorrectRange('start_id cannot be less than 0 or bigger than end_id')
-
-        total_length = 0
-        lengths = []
-        for feature_name in feature_names:
-            feature_len = backend.data_length_and_type(db, 1, feature_name)
-            if feature_len[0] == 'string' or feature_len[0] <= 0:
-                raise NonNumericFeatureType('Cannot convert column ' + feature_name + ' to numpy array')
-            else:
-                total_length += feature_len[0]
-                lengths.append(feature_len[0])
-
-        if total_length > 0:
-            result = np.zeros((self.total_records + 1 - start_id, total_length))
-            for record_id in range(start_id, end_id + 1):
-                curr_len = 0
-                for name_number_pair in enumerate(feature_names):
-                    result[record_id-start_id, curr_len:curr_len+lengths[name_number_pair[0]]]\
-                        = np.array(backend.read_data(db, record_id, name_number_pair[1]))
-                    curr_len += lengths[name_number_pair[0]]
-            backend.close_db(db)
-            return result
-        else:
-            raise KrakenlibException('No features that can be fit into a numpy array found in the passed tuple')
 
     def return_feature_names(self) -> list:
         """
@@ -328,7 +242,7 @@ class DataSet(object):
         assume that the first element has all the features? or combine all? or return all + all separate variations?
         """
         if self.total_records == 0:
-            raise EmptyDataSet('The dataset is empty!')
+            raise KrakenlibException('The dataset is empty!')
         db = backend.open_db(self.db_data)
         return_list = backend.data_names(db, 1)
         backend.close_db(db)
@@ -364,7 +278,7 @@ class DataSet(object):
         return True if the condition is satisfied, False otherwise)
         """
         if self.feature_exists_global(feature_name) is False:
-            raise DoesNotExist('Feature "' + feature_name + '" does not exist')
+            raise KrakenlibException('Feature "' + feature_name + '" does not exist')
         else:
             result = []
             for data_record in self.yield_data_records(('id', feature_name,)):
