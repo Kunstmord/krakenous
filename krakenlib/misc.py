@@ -4,6 +4,7 @@ Misc. helper functions
 """
 
 import numpy as np
+from krakenlib.errors import KrakenlibException
 
 
 def is_a_number(x):
@@ -25,7 +26,9 @@ def element_length(x):
     elif isinstance(x, tuple):
         result_length = (len(x), 'tuple')
     elif is_a_number(x):
-        result_length = (0, 'number')
+        result_length = (1, 'number')
     elif isinstance(x, str):
         result_length = ('string', 'string')
+    else:
+        raise KrakenlibException('Unknown type')
     return result_length
