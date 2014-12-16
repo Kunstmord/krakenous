@@ -279,12 +279,14 @@ class DataSet(object):
         backend.close_db(db)
         return result_dict
 
-    def yield_data_records(self, column_names: tuple=()) -> dict:
+    def yield_data_records(self, column_names: tuple=(), start_id: int=1, end_id: int=-1) -> dict:
         """
         return only what is specified in column_names; if () - return everything
         """
-        for record_id in range(self.total_records):
-            yield self.single_data_record(record_id + 1, column_names)
+        if end_id == -1:
+            end_id = self.total_records
+        for record_id in range(start_id, end_id + 1):
+            yield self.single_data_record(record_id, column_names)
 
     def id_filter_by_feature(self, feature_name: str, filter_function, *args, **kwargs) -> list:  # NEEDS TESTING
         """
