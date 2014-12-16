@@ -6,9 +6,11 @@ sync/dump/copy datasets
 """
 from csv import reader
 from os.path import join, isfile
+import numpy as np
 from os import walk
 from krakenlib.dataset import DataSet
-from krakenlib.errors import OverwriteError, UnknownBackend
+from krakenlib.misc import element_length
+from krakenlib.errors import KrakenlibException
 
 
 def csv_tentacle(path_to_file, id_column_number, missing_element=-1, custom_mapping: list=None):
@@ -40,7 +42,7 @@ def add_labels(dataset: DataSet, id_field_name: str, labels, labels_name: str='l
     return difference between added and not_added?
     """
     if overwrite_existing is False and dataset.feature_exists_global(labels_name) is True:
-        raise OverwriteError(labels_name)
+        raise KrakenlibException(labels_name)
     inserts = 0
     for data_record in dataset.yield_data_records(('id', id_field_name)):
         for single_label in labels:
@@ -55,7 +57,7 @@ def dump_dataset(dataset: DataSet, db_data: dict, dump_backend: str, column_name
     allow copying only of specified column_names
     """
     if dump_backend not in ('sqlite', 'pickle', 'csv'):
-        raise UnknownBackend(dump_backend)
+        raise KrakenlibException('Unknown backend' + dump_backend)
     else:
         new_dataset = DataSet(dump_backend, db_data)
         if copy_meta is True:
@@ -76,4 +78,82 @@ def sync_datasets(dataset1, dataset2, abort_if_collision: bool=True):
     use dataset.rename_field for that
     return either none or a list of tuples of renamed fields: [(myfield1, myfield2)]
     """
+    pass
+
+
+def convert_single_feature_numpy(dataset: DataSet, feature_name: str, start_id: int=1, end_id: int=-1):
+    # always returns a 2d array
+    if dataset.total_records == 0:
+        raise KrakenlibException('The dataset is empty!')
+    if end_id == -1:
+        end_id = dataset.total_records
+    else:
+        if end_id > dataset.total_records:
+            raise KrakenlibException('Incorrect range, end_id=' + str(end_id), ', while total_records='
+                                 + str(dataset.total_records))
+    if start_id < 0 or start_id > end_id:
+        raise KrakenlibException('start_id cannot be less than 0 or bigger than end_id')
+
+    starting = dataset.single_data_record(start_id, (feature_name,))
+
+    el_length = element_length(starting[feature_name])
+    if el_length[1] == 'string':
+        raise KrakenlibException('Cannot convert column ' + feature_name + ' to numpy array')
+    result = np.zeros((end_id - start_id + 1, el_length[0]))
+    if el_length[1] == 'number':
+        for data_record in enumerate(dataset.yield_data_records((feature_name,), start_id, end_id)):
+            result[data_record[0], 0] = data_record[1][feature_name]
+    elif el_length[1] == 'tuple' or el_length[1] == 'list':
+        for data_record in enumerate(dataset.yield_data_records((feature_name,), start_id, end_id)):
+            result[data_record[0], :] = data_record[1][feature_name]
+    elif el_length[1] == 'ndarray':
+        for data_record in enumerate(dataset.yield_data_records((feature_name,), start_id, end_id)):
+            result[data_record[0], :] = data_record[1][feature_name].flatten()
+    return result
+
+
+def return_multiple_features_numpy(dataset: DataSet, feature_names: tuple, start_id: int=1, end_id: int=-1):
+    # """
+    # if convert_numpy = false, returns list of lists - (feature_name, feature)
+    # else returns a single enormous array
+    # add start_id / end_id
+    # end_id = -1 means return EVERYTHING in (start_id, end_id)
+    # """
+    # if dataset.total_records == 0:
+    #     raise EmptyDataSet('The dataset is empty!')
+    # for feature_name in feature_names:
+    #     if dataset.feature_exists_global(feature_name) is False:
+    #         raise DoesNotExist('Feature "' + feature_name + '" does not exist')
+    # db = backend.open_db(dataset.db_data)
+    # if end_id == -1:
+    #     end_id = dataset.total_records
+    # else:
+    #     if end_id > dataset.total_records:
+    #         raise IncorrectRange('Incorrect range, end_id=' + str(end_id), ', while total_records='
+    #                              + str(dataset.total_records))
+    # if start_id < 0 or start_id > end_id:
+    #     raise IncorrectRange('start_id cannot be less than 0 or bigger than end_id')
+    #
+    # total_length = 0
+    # lengths = []
+    # for feature_name in feature_names:
+    #     feature_len = backend.data_length_and_type(db, 1, feature_name)
+    #     if feature_len[0] == 'string' or feature_len[0] <= 0:
+    #         raise NonNumericFeatureType('Cannot convert column ' + feature_name + ' to numpy array')
+    #     else:
+    #         total_length += feature_len[0]
+    #         lengths.append(feature_len[0])
+    #
+    # if total_length > 0:
+    #     result = np.zeros((dataset.total_records + 1 - start_id, total_length))
+    #     for record_id in range(start_id, end_id + 1):
+    #         curr_len = 0
+    #         for name_number_pair in enumerate(feature_names):
+    #             result[record_id-start_id, curr_len:curr_len+lengths[name_number_pair[0]]]\
+    #                 = np.array(backend.read_data(db, record_id, name_number_pair[1]))
+    #             curr_len += lengths[name_number_pair[0]]
+    #     backend.close_db(db)
+    #     return result
+    # else:
+    #     raise KrakenlibException('No features that can be fit into a numpy array found in the passed tuple')
     pass
