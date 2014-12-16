@@ -90,7 +90,6 @@ class DataSet(object):
 
     def extract_feature(self, extractor, *args, column_names: tuple=(), metadata_names: tuple=(), verbose: int=0,
                         writeback: int=0, overwrite_feature: bool=False, **kwargs):
-        # what about SQL column types?
         if self.total_records == 0:
             raise KrakenlibException('The dataset is empty!')
         extractor_name = extractor.__name__
@@ -107,7 +106,7 @@ class DataSet(object):
             additional_data = {}
             additional_metadata = {}
             for column_name in column_names:
-                additional_data[column_name] = backend.read_data(db, record_id + 1, column_name)
+                additional_data[column_name] = backend.read_single_data(db, record_id + 1, column_name)
             for metadata_name in metadata_names:
                 additional_metadata[metadata_name] = self.metadata[metadata_name]
             backend.write_data(db, record_id + 1, extractor_name, extractor(additional_data, additional_metadata,
@@ -147,7 +146,7 @@ class DataSet(object):
             else:
                 db = backend.open_db(self.db_data, False)
             for record_id in range(self.total_records):
-                backend.write_data(db, record_id + 1, new_feature_name, backend.read_data(db, record_id + 1,
+                backend.write_data(db, record_id + 1, new_feature_name, backend.read_single_data(db, record_id + 1,
                                                                                           original_feature_name))
                 backend.delete_data(db, record_id + 1, original_feature_name)
                 if writeback != 0 and record_id % writeback == 0:
@@ -207,7 +206,7 @@ class DataSet(object):
         backend.close_db(db)
         return False
 
-    def return_single_feature(self, feature_name: str, start_id: int=1, end_id: int=-1):
+    def single_feature(self, feature_name: str, start_id: int=1, end_id: int=-1):
         if self.total_records == 0:
             raise KrakenlibException('The dataset is empty!')
         if self.feature_exists_global(feature_name) is False:
@@ -223,19 +222,37 @@ class DataSet(object):
             raise KrakenlibException('start_id cannot be less than 0 or bigger than end_id')
         result = []
         for record_id in range(start_id, end_id + 1):
-            result.append(backend.read_data(db, record_id, feature_name))
+            result.append(backend.read_single_data(db, record_id, feature_name))
         backend.close_db(db)
         return result
 
-    def return_multiple_features(self, feature_names: tuple, start_id: int=0, end_id: int=-1):
+    def multiple_features(self, feature_names: tuple, start_id: int=1, end_id: int=-1) -> list:
         """
-        if convert_numpy = false, returns list of lists - (feature_name, feature)
+        returns list of dictionaries
         add start_id / end_id
         end_id = -1 means return EVERYTHING in (start_id, end_id)
         """
-        pass
+        if self.total_records == 0:
+            raise KrakenlibException('The dataset is empty!')
+        for feature_name in feature_names:
+            if self.feature_exists_global(feature_name) is False:
+                raise KrakenlibException('Feature "' + feature_name + '" does not exist')
+        db = backend.open_db(self.db_data)
+        if end_id == -1:
+            end_id = self.total_records
+        else:
+            if end_id > self.total_records:
+                raise KrakenlibException('Incorrect range, end_id=' + str(end_id), ', while total_records='
+                                     + str(self.total_records))
+        if start_id < 0 or start_id > end_id:
+            raise KrakenlibException('start_id cannot be less than 0 or bigger than end_id')
+        result = []
+        for record_id in range(start_id, end_id + 1):
+            result.append(backend.read_multiple_data(db, record_id, feature_names))
+        backend.close_db(db)
+        return result
 
-    def return_feature_names(self) -> list:
+    def feature_names(self) -> list:
         """
         return a list of tuples (<column_name>, <length>) - if number, length = 1, if list/np-array, length
         if string - what if it's a string? -1?
@@ -244,11 +261,11 @@ class DataSet(object):
         if self.total_records == 0:
             raise KrakenlibException('The dataset is empty!')
         db = backend.open_db(self.db_data)
-        return_list = backend.data_names(db, 1)
+        return_list = backend.all_data_names(db, 1)
         backend.close_db(db)
         return return_list
 
-    def return_single_data_record(self, record_id, column_names: tuple=()) -> dict:
+    def single_data_record(self, record_id, column_names: tuple=()) -> dict:
         """
         returns a dict
         """
@@ -258,21 +275,19 @@ class DataSet(object):
             result_dict = backend.read_all_data(db, record_id)
         else:
             for column_name in column_names:
-                result_dict[column_name] = backend.read_data(db, record_id, column_name)
+                result_dict[column_name] = backend.read_single_data(db, record_id, column_name)
         backend.close_db(db)
         return result_dict
 
     def yield_data_records(self, column_names: tuple=()) -> dict:
         """
-        FINISHED
         return only what is specified in column_names; if () - return everything
         """
         for record_id in range(self.total_records):
-            yield self.return_single_data_record(record_id + 1, column_names)
+            yield self.single_data_record(record_id + 1, column_names)
 
-    def return_id_filter_by_feature(self, feature_name: str, filter_function, *args, **kwargs) -> list:  # NEEDS TESTING
+    def id_filter_by_feature(self, feature_name: str, filter_function, *args, **kwargs) -> list:  # NEEDS TESTING
         """
-        Need to check consistency??
         Returns a list of ids of data records for which the feature specified by feature_name satisfies
         a condition set by filter_function(feature_name, *args, **kwargs) (the filter_function should
         return True if the condition is satisfied, False otherwise)
@@ -282,6 +297,6 @@ class DataSet(object):
         else:
             result = []
             for data_record in self.yield_data_records(('id', feature_name,)):
-                if filter_function(data_record[feature_name], *args, **kwargs) is True:
+                if filter_function(data_record[feature_name], *args, **kwargs):
                     result.append(data_record['id'])
             return result
