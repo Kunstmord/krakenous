@@ -45,7 +45,7 @@ def write_data(db: dict, record_id: int, data_name: str, data):
             db['db'][str(record_id)] = tmp_dict
 
 
-def read_data(db: dict, record_id: int, data_name: str):
+def read_single_data(db: dict, record_id: int, data_name: str):
     """Return the contents of a data column specified by data_name for a given record_id
     """
     if data_name in db['db'][str(record_id)].keys():
@@ -54,9 +54,19 @@ def read_data(db: dict, record_id: int, data_name: str):
         return None
 
 
+def read_multiple_data(db: dict, record_id: int, data_names: tuple):
+    """Return the contents of data columns specified by contents data_names for a given record_id
+    """
+    result = {}
+    for data_name in data_names:
+        if data_name in db['db'][str(record_id)].keys():
+            result[data_name] = db['db'][str(record_id)][data_name]
+    return result
+
+
 def read_all_data(db: dict, record_id: int):
     """
-    Return all data for a given record_id
+    Return the contents of all data columns for a given record_id
     """
     return_dict = {}
     for data_name in db['db'][str(record_id)]:
@@ -87,26 +97,16 @@ def data_exists(db: dict, record_id: int, data_name: str) -> bool:
         return True
 
 
-def data_names(db: dict, record_id: int) -> list:
+def all_data_names(db: dict, record_id: int) -> list:
     """Return data names for a given record
     """
-    # TODO - remove element_length
     if db['db'][str(record_id)] == {}:
         return []
     else:
         return_list = []
         for data_name in db['db'][str(record_id)]:
-            feature_len = element_length(db['db'][str(record_id)][data_name])[0]
-            return_list.append((data_name, feature_len))
+            return_list.append(data_name)
         return return_list
-
-
-def data_length_and_type(db: dict, record_id: int, data_name: str):
-    # TODO - Deprecate
-    if db['db'][str(record_id)] == {}:
-        return -1
-    else:
-        return element_length(db['db'][str(record_id)][data_name])
 
 
 def delete_record(db: dict, record_id: int, total_records):
