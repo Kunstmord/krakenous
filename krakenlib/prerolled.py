@@ -90,7 +90,7 @@ def convert_single_feature_numpy(dataset: DataSet, feature_name: str, start_id: 
     else:
         if end_id > dataset.total_records:
             raise KrakenlibException('Incorrect range, end_id=' + str(end_id), ', while total_records='
-                                 + str(dataset.total_records))
+                                     + str(dataset.total_records))
     if start_id < 0 or start_id > end_id:
         raise KrakenlibException('start_id cannot be less than 0 or bigger than end_id')
 
@@ -100,60 +100,57 @@ def convert_single_feature_numpy(dataset: DataSet, feature_name: str, start_id: 
     if el_length[1] == 'string':
         raise KrakenlibException('Cannot convert column ' + feature_name + ' to numpy array')
     result = np.zeros((end_id - start_id + 1, el_length[0]))
-    if el_length[1] == 'number':
-        for data_record in enumerate(dataset.yield_data_records((feature_name,), start_id, end_id)):
-            result[data_record[0], 0] = data_record[1][feature_name]
-    elif el_length[1] == 'tuple' or el_length[1] == 'list':
+    if el_length[1] == 'number' or el_length[1] == 'tuple' or el_length[1] == 'list':
         for data_record in enumerate(dataset.yield_data_records((feature_name,), start_id, end_id)):
             result[data_record[0], :] = data_record[1][feature_name]
+        # for data_record in enumerate(dataset.yield_data_records((feature_name,), start_id, end_id)):
+        #     result[data_record[0], :] = data_record[1][feature_name]
     elif el_length[1] == 'ndarray':
         for data_record in enumerate(dataset.yield_data_records((feature_name,), start_id, end_id)):
             result[data_record[0], :] = data_record[1][feature_name].flatten()
     return result
 
 
-def return_multiple_features_numpy(dataset: DataSet, feature_names: tuple, start_id: int=1, end_id: int=-1):
-    # """
-    # if convert_numpy = false, returns list of lists - (feature_name, feature)
-    # else returns a single enormous array
-    # add start_id / end_id
-    # end_id = -1 means return EVERYTHING in (start_id, end_id)
-    # """
-    # if dataset.total_records == 0:
-    #     raise EmptyDataSet('The dataset is empty!')
-    # for feature_name in feature_names:
-    #     if dataset.feature_exists_global(feature_name) is False:
-    #         raise DoesNotExist('Feature "' + feature_name + '" does not exist')
-    # db = backend.open_db(dataset.db_data)
-    # if end_id == -1:
-    #     end_id = dataset.total_records
-    # else:
-    #     if end_id > dataset.total_records:
-    #         raise IncorrectRange('Incorrect range, end_id=' + str(end_id), ', while total_records='
-    #                              + str(dataset.total_records))
-    # if start_id < 0 or start_id > end_id:
-    #     raise IncorrectRange('start_id cannot be less than 0 or bigger than end_id')
-    #
-    # total_length = 0
-    # lengths = []
-    # for feature_name in feature_names:
-    #     feature_len = backend.data_length_and_type(db, 1, feature_name)
-    #     if feature_len[0] == 'string' or feature_len[0] <= 0:
-    #         raise NonNumericFeatureType('Cannot convert column ' + feature_name + ' to numpy array')
-    #     else:
-    #         total_length += feature_len[0]
-    #         lengths.append(feature_len[0])
-    #
-    # if total_length > 0:
-    #     result = np.zeros((dataset.total_records + 1 - start_id, total_length))
-    #     for record_id in range(start_id, end_id + 1):
-    #         curr_len = 0
-    #         for name_number_pair in enumerate(feature_names):
-    #             result[record_id-start_id, curr_len:curr_len+lengths[name_number_pair[0]]]\
-    #                 = np.array(backend.read_data(db, record_id, name_number_pair[1]))
-    #             curr_len += lengths[name_number_pair[0]]
-    #     backend.close_db(db)
-    #     return result
-    # else:
-    #     raise KrakenlibException('No features that can be fit into a numpy array found in the passed tuple')
-    pass
+def convert_multiple_features_numpy(dataset: DataSet, feature_names: tuple, start_id: int=1, end_id: int=-1):
+
+    if dataset.total_records == 0:
+        raise KrakenlibException('The dataset is empty!')
+    if end_id == -1:
+        end_id = dataset.total_records
+    else:
+        if end_id > dataset.total_records:
+            raise KrakenlibException('Incorrect range, end_id=' + str(end_id), ', while total_records='
+                                     + str(dataset.total_records))
+    if start_id < 0 or start_id > end_id:
+        raise KrakenlibException('start_id cannot be less than 0 or bigger than end_id')
+
+    total_length = 0
+
+    starting = dataset.single_data_record(start_id, feature_names)
+
+    lengths = []
+    for feature_name in feature_names:
+        feature_len = element_length(starting[feature_name])
+        if feature_len[1] == 'string' or feature_len[0] <= 0:
+            raise KrakenlibException('Cannot convert column ' + feature_name + ' to numpy array')
+        else:
+            total_length += feature_len[0]
+            lengths.append(feature_len)
+    if total_length > 0:
+        result = np.zeros((dataset.total_records + 1 - start_id, total_length))
+        for data_record in enumerate(dataset.yield_data_records(feature_names, start_id, end_id)):
+            curr_len = 0
+            for name_number_pair in enumerate(feature_names):
+                el_type = lengths[name_number_pair[0]][1]
+                el_len = lengths[name_number_pair[0]][0]
+                if el_type == 'number' or el_type == 'tuple' or el_type == 'list':
+                    result[data_record[0],
+                           curr_len:curr_len + el_len] = data_record[1][name_number_pair[1]]
+                    curr_len += el_len
+                elif el_type == 'ndarray':
+                    result[data_record[0],
+                           curr_len:curr_len + el_len] = data_record[1][name_number_pair[1]].flatten()
+                    curr_len += el_len
+        return result
+    else:
+        raise KrakenlibException('No features that can be fit into a numpy array found in the passed tuple')
