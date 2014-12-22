@@ -16,7 +16,7 @@ class DataSet(object):
         elif backend_name == 'shelve':
             global backend
             import krakenlib.backend_shelve as backend
-            if os.path.isfile(db_data['shelve_path'] + '.db'):  # shelve makes files end in .db
+            if os.path.isfile(db_data['db_path'] + '.db'):  # shelve makes files end in .db
                 self.total_records = backend.data_records_amount(db_data)
         self.db_data = db_data
         self.backend_name = backend_name
@@ -28,9 +28,6 @@ class DataSet(object):
             self.metadata = metadata
 
     def update_metadata(self, new_metadata: dict):
-        """
-        FINISHED
-        """
         if self.metadata is {}:
             self.metadata = new_metadata
         else:
@@ -60,7 +57,6 @@ class DataSet(object):
         """
         do not write id field! (if exists in dict) (doesn't concern shelve)
         """
-        # if db is None:
         if self.backend_name == 'shelve':
             db = backend.open_db(self.db_data)
         for data_entry in data_record:
