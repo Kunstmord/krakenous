@@ -39,7 +39,7 @@ class TestShelve(unittest.TestCase):
         to use with the folder_tentacle (if a testfolder already exists, this just reaches inside it and grabs what's
         there)
         """
-        self.dataset = DataSet('shelve', {'shelve_path': 'testshelve'})  # we will use the folder tentacle for testing
+        self.dataset = DataSet('shelve', {'db_path': 'testshelve'})  # we will use the folder tentacle for testing
         if self.dataset.total_records == 0:
             if not os.path.isdir('testfolder'):
                 makedirs('testfolder')
@@ -128,7 +128,7 @@ class TestNumpyConvert(unittest.TestCase):
         to use with the folder_tentacle (if a testfolder already exists, this just reaches inside it and grabs what's
         there)
         """
-        self.dataset = DataSet('shelve', {'shelve_path': 'testshelve'})  # we will use the folder tentacle for testing
+        self.dataset = DataSet('shelve', {'db_path': 'testshelve'})  # we will use the folder tentacle for testing
         if self.dataset.total_records == 0:
             if not os.path.isdir('testfolder'):
                 makedirs('testfolder')

@@ -5,15 +5,13 @@ The structure is {id: {'feature1': feature1, ...}, ...}
 """
 
 import shelve
-from numpy import ndarray
-from krakenlib.misc import is_a_number, element_length
 
 
 def open_db(db_data: dict, writeback: bool=False) -> dict:
     """
     open the db for reading, return everything in a dict
     """
-    return {'db': shelve.open(db_data['shelve_path'], writeback=writeback),
+    return {'db': shelve.open(db_data['db_path'], writeback=writeback),
             'writeback': writeback}
 
 
@@ -120,7 +118,7 @@ def delete_record(db: dict, record_id: int, total_records):
 def data_records_amount(db_data: dict) -> int:
     """How many data records are there in all?
     """
-    db = shelve.open(db_data['shelve_path'])
+    db = shelve.open(db_data['db_path'])
     records_amount = len(db.keys())
     db.close()
     return records_amount
