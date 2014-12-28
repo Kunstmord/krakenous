@@ -20,6 +20,10 @@ def ext3(add_data, add_metadata):
     return 23930
 
 
+def argfeature_test(add_data, add_metadata, i, j=2):
+    return i + j
+
+
 def numpy_feature(add_data, add_metadata):
     return np.zeros(3)
 
@@ -48,14 +52,14 @@ class TestShelve(unittest.TestCase):
             self.dataset.populate(folder_tentacle, 'testfolder', 'filename')
 
     def test_extraction(self):
-        self.dataset.extract_feature(fake_extractor, 23, overwrite_feature=True)
+        self.dataset.extract_feature_full(fake_extractor, 23, overwrite_feature=True)
         assert self.dataset.feature_exists_global('fake_extractor') is True  # the feature exists
 
     def test_extraction_value(self):
-        self.dataset.extract_feature(fake_extractor, 46, overwrite_feature=True)
+        self.dataset.extract_feature_full(fake_extractor, 46, overwrite_feature=True)
         assert self.dataset.single_data_record(1, ('fake_extractor',))['fake_extractor'] == 46
         # the feature value is correct
-        self.dataset.extract_feature(fake_extractor, 'meaning of life', overwrite_feature=True)
+        self.dataset.extract_feature_full(fake_extractor, 'meaning of life', overwrite_feature=True)
         assert self.dataset.single_data_record(1, ('fake_extractor',))['fake_extractor'] == 'meaning of life'
         # feature overwriting works correctly
 
@@ -71,14 +75,14 @@ class TestShelve(unittest.TestCase):
         # overwrite works correctly
 
     def test_delete_feature(self):
-        self.dataset.extract_feature(a_very_fake_extractor, overwrite_feature=True)
+        self.dataset.extract_feature_full(a_very_fake_extractor, overwrite_feature=True)
         assert self.dataset.feature_exists_global('a_very_fake_extractor') is True  # feature exists
         self.dataset.delete_feature('a_very_fake_extractor')
         assert self.dataset.feature_exists_global('a_very_fake_extractor') is False  # featue doesn't exist anymore
 
     def test_rename_feature(self):
-        self.dataset.extract_feature(a_very_fake_extractor, overwrite_feature=True)
-        self.dataset.extract_feature(ext3, overwrite_feature=True)
+        self.dataset.extract_feature_full(a_very_fake_extractor, overwrite_feature=True)
+        self.dataset.extract_feature_full(ext3, overwrite_feature=True)
         assert self.dataset.feature_exists_global('a_very_fake_extractor') is True  # feature exists
         self.dataset.rename_feature('a_very_fake_extractor', 'renamed_fake_extractor')
         assert self.dataset.feature_exists_global('a_very_fake_extractor') is False  # original name doesn't exists
@@ -90,9 +94,9 @@ class TestShelve(unittest.TestCase):
         assert self.dataset.single_data_record(3, ('ext3',))['ext3'] == 30239  # and the value was overwritten
 
     def test_feature_names(self):
-        self.dataset.extract_feature(a_very_fake_extractor, overwrite_feature=True)
-        self.dataset.extract_feature(numpy_feature, overwrite_feature=True)
-        self.dataset.extract_feature(string_feature, overwrite_feature=True)
+        self.dataset.extract_feature_full(a_very_fake_extractor, overwrite_feature=True)
+        self.dataset.extract_feature_full(numpy_feature, overwrite_feature=True)
+        self.dataset.extract_feature_full(string_feature, overwrite_feature=True)
         feature_names = self.dataset.feature_names()
         assert 'a_very_fake_extractor' in feature_names
         assert 'string_feature' in feature_names
@@ -120,6 +124,12 @@ class TestShelve(unittest.TestCase):
         assert self.dataset.single_data_record(current_records, ('fake_extractor',))['fake_extractor']\
                != 'NOT THE MEANING OF LIFE AT ALL'  # the last record is correct
 
+    def test_feature_args(self):
+        self.dataset.extract_feature_full(argfeature_test, 5,
+                                          column_names=(), metadata_names=(), verbose=0, writeback=0,
+                                          overwrite_feature=True, j=10)
+        assert self.dataset.single_data_record(5, ('argfeature_test',))['argfeature_test'] == 15
+
 
 class TestNumpyConvert(unittest.TestCase):
     def setUp(self):
@@ -142,7 +152,7 @@ class TestNumpyConvert(unittest.TestCase):
         assert feature[0, 1] == 0  # converts a single feature for each record into a single numpy array correctly
 
     def test_return_multiple_features_numpy(self):
-        self.dataset.extract_feature(numpy_feature2, overwrite_feature=True)
+        self.dataset.extract_feature_full(numpy_feature2, overwrite_feature=True)
         assert self.dataset.feature_exists_global('numpy_feature2') is True
         feature = convert_multiple_features_numpy(self.dataset, ('numpy_feature', 'numpy_feature2',))
         assert isinstance(feature, np.ndarray) == True
