@@ -1,11 +1,7 @@
 __author__ = 'George Oblapenko, Viktor Evstratov'
 __license__ = "GPLv3"
-# if you want to return labels, write your own return_feature('label')
-# _safe versions (which do not check for fields named 'id' or other fields that are protected? Store protected
-# fields in self.metadata?) And check otherwise?
 from krakenlib.errors import *
 import os.path
-import numpy as np
 
 
 class DataSet(object):
@@ -21,11 +17,23 @@ class DataSet(object):
         self.db_data = db_data
         self.backend_name = backend_name
 
-        # self.feature_consistency = {}
         if metadata is None:
             self.metadata = {}
         else:
             self.metadata = metadata
+
+    def get_end_id(self, start_id, end_id):
+        if self.total_records == 0:
+            raise KrakenlibException('The dataset is empty!')
+        if end_id == -1:
+            end_id = self.total_records
+        else:
+            if end_id > self.total_records:
+                raise KrakenlibException('Incorrect range, end_id=' + str(end_id), ', while total_records='
+                                         + str(self.total_records))
+        if start_id < 0 or start_id > end_id:
+            raise KrakenlibException('start_id cannot be less than 0 or bigger than end_id')
+        return end_id
 
     def update_metadata(self, new_metadata: dict):
         if self.metadata is {}:
@@ -84,10 +92,10 @@ class DataSet(object):
             backend.write_data(db, record_id, feature_name, data)
             backend.close_db(db)
 
-    def extract_feature(self, extractor, *args, column_names: tuple=(), metadata_names: tuple=(), verbose: int=0,
-                        writeback: int=0, overwrite_feature: bool=False, **kwargs):
-        if self.total_records == 0:
-            raise KrakenlibException('The dataset is empty!')
+    def extract_feature_full_for_range(self, start_id: int, end_id: int,
+                                       extractor, *args, column_names: tuple=(), metadata_names: tuple=(),
+                                       verbose: int=0, writeback: int=0, overwrite_feature: bool=False, **kwargs):
+        end_id = self.get_end_id(start_id, end_id)
         extractor_name = extractor.__name__
         if overwrite_feature is False and self.feature_exists_global(extractor_name) is True:
             raise KrakenlibException('Feature with name "' + extractor_name + '" already exists')
@@ -98,22 +106,39 @@ class DataSet(object):
         else:
             db = backend.open_db(self.db_data, False)
 
-        for record_id in range(self.total_records):
+        for record_id in range(start_id, end_id + 1):
             additional_data = {}
             additional_metadata = {}
             for column_name in column_names:
-                additional_data[column_name] = backend.read_single_data(db, record_id + 1, column_name)
+                additional_data[column_name] = backend.read_single_data(db, record_id, column_name)
             for metadata_name in metadata_names:
                 additional_metadata[metadata_name] = self.metadata[metadata_name]
-            backend.write_data(db, record_id + 1, extractor_name, extractor(additional_data, additional_metadata,
+            backend.write_data(db, record_id, extractor_name, extractor(additional_data, additional_metadata,
                                                                             *args, **kwargs))
             if verbose != 0 and record_id % verbose == 0:
-                print(record_id + 1)
+                print(record_id)
             if writeback != 0 and record_id % writeback == 0:
                 backend.commit_db(db)
         backend.close_db(db)
 
+    def extract_feature_simple(self, extractor, *args, **kwargs):
+        self.extract_feature_full_for_range(1, -1, extractor, *args, column_names=(),
+                                            metadata_names=(), verbose=0,
+                                            writeback=0, overwrite_feature=False, **kwargs)
+
+    def extract_feature_full(self, extractor, *args, column_names: tuple=(), metadata_names: tuple=(), verbose: int=0,
+                             writeback: int=0, overwrite_feature: bool=False, **kwargs):
+        self.extract_feature_full_for_range(1, -1, extractor, *args, column_names=column_names,
+                                            metadata_names=metadata_names, verbose=verbose,
+                                            writeback=writeback, overwrite_feature=overwrite_feature, **kwargs)
+
     def delete_feature(self, feature_name: str, writeback: int=0):
+        """
+        delete the whole column of features
+        :param feature_name:
+        :param writeback:
+        :return:
+        """
         if self.total_records == 0:
             raise KrakenlibException('The dataset is empty!')
         if self.backend_name == 'sqlite':
@@ -203,19 +228,10 @@ class DataSet(object):
         return False
 
     def single_feature(self, feature_name: str, start_id: int=1, end_id: int=-1):
-        if self.total_records == 0:
-            raise KrakenlibException('The dataset is empty!')
+        end_id = self.get_end_id(start_id, end_id)
         if self.feature_exists_global(feature_name) is False:
             raise KrakenlibException('Feature "' + feature_name + '" does not exist')
         db = backend.open_db(self.db_data)
-        if end_id == -1:
-            end_id = self.total_records
-        else:
-            if end_id > self.total_records:
-                raise KrakenlibException('Incorrect range, end_id=' + str(end_id), ', while total_records='
-                                     + str(self.total_records))
-        if start_id < 0 or start_id > end_id:
-            raise KrakenlibException('start_id cannot be less than 0 or bigger than end_id')
         result = []
         for record_id in range(start_id, end_id + 1):
             result.append(backend.read_single_data(db, record_id, feature_name))
@@ -228,20 +244,11 @@ class DataSet(object):
         add start_id / end_id
         end_id = -1 means return EVERYTHING in (start_id, end_id)
         """
-        if self.total_records == 0:
-            raise KrakenlibException('The dataset is empty!')
+        end_id = self.get_end_id(start_id, end_id)
         for feature_name in feature_names:
             if self.feature_exists_global(feature_name) is False:
                 raise KrakenlibException('Feature "' + feature_name + '" does not exist')
         db = backend.open_db(self.db_data)
-        if end_id == -1:
-            end_id = self.total_records
-        else:
-            if end_id > self.total_records:
-                raise KrakenlibException('Incorrect range, end_id=' + str(end_id), ', while total_records='
-                                     + str(self.total_records))
-        if start_id < 0 or start_id > end_id:
-            raise KrakenlibException('start_id cannot be less than 0 or bigger than end_id')
         result = []
         for record_id in range(start_id, end_id + 1):
             result.append(backend.read_multiple_data(db, record_id, feature_names))
@@ -261,7 +268,20 @@ class DataSet(object):
         backend.close_db(db)
         return return_list
 
+    def _single_data_record_open(self, record_id, db, column_names: tuple=()) -> dict:
+        """
+        returns a dict
+        """
+        result_dict = {}
+        if column_names == ():
+            result_dict = backend.read_all_data(db, record_id)
+        else:
+            for column_name in column_names:
+                result_dict[column_name] = backend.read_single_data(db, record_id, column_name)
+        return result_dict
+
     def single_data_record(self, record_id, column_names: tuple=()) -> dict:
+        # TODO - read_all_data returns dict for shelve and list for SQL backends
         """
         returns a dict
         """
@@ -279,10 +299,11 @@ class DataSet(object):
         """
         return only what is specified in column_names; if () - return everything
         """
-        if end_id == -1:
-            end_id = self.total_records
+        db = backend.open_db(self.db_data)
+        end_id = self.get_end_id(start_id, end_id)
         for record_id in range(start_id, end_id + 1):
-            yield self.single_data_record(record_id, column_names)
+            yield self._single_data_record_open(record_id, db, column_names)
+        backend.close_db(db)
 
     def id_filter_by_feature(self, feature_name: str, filter_function, *args, **kwargs) -> list:  # NEEDS TESTING
         """
