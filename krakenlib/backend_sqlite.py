@@ -8,6 +8,15 @@ import sqlite3
 from json import loads, dumps
 
 
+def create_db(db_data: dict):
+    conn = sqlite3.connect(db_data['db_path'])
+    c = conn.cursor()
+    sql_string = 'CREATE TABLE ' + db_data['table_name'] + ' (id integer primary key)'
+    c.execute(sql_string)
+    conn.commit()
+    conn.close()
+
+
 def open_db(db_data: dict, writeback: bool=False) -> dict:
     """
     open the db for reading, return everything in a dict - cursor, connection, metadata
@@ -25,6 +34,15 @@ def close_db(db: dict):
 
 def commit_db(db: dict):
     db['db_connection'].commit()
+
+
+def create_new_column(db: dict, data_name: str):
+    sql_string = 'ALTER TABLE ' + db['table_name'] + ' ADD COLUMN ' + data_name + ' TEXT'
+    db['db'].execute(sql_string)
+
+
+def write_data(db: dict, record_id: int, data_name: str, data):
+    pass
 #
 #
 # def write_data(db: dict, record_id: int, data_name: str, data):
@@ -49,9 +67,8 @@ def commit_db(db: dict):
 def read_single_data(db: dict, record_id: int, data_name: str):
     """Return the contents of a data column specified by data_name for a given record_id
     """
-    db['db'].execute('SELECT :data_name FROM :tablename WHERE id=:record_id', {'data_name': data_name,
-                                                                               'tablename': db['table_name'],
-                                                                               'record_id': record_id})
+    db['db'].execute('SELECT :data_name FROM :tablename WHERE id=:record_id',
+                     {'data_name': data_name, 'tablename': db['table_name'], 'record_id': record_id})
     return loads(db['db'].fetchone()[0])
 
 
@@ -94,15 +111,15 @@ def all_data_names(db: dict) -> list:
     return list(map(lambda x: x[0], db['db'].description))
 
 
-def delete_record(db: dict, record_id: int, total_records):
-    """Delete a record specified by record_id
-    """
-    db['db'].execute('DELETE FROM :tablename WHERE id=:record_id', {'tablename': db['table_name'],
-                                                                    'record_id': record_id})
-
-    # for i in range(record_id, total_records):
-    #     db['db'][str(record_id)] = db['db'][record_id + 1]
-    del db['db'][str(total_records)]
+# def delete_record(db: dict, record_id: int, total_records):
+#     """Delete a record specified by record_id
+#     """
+#     db['db'].execute('DELETE FROM :tablename WHERE id=:record_id', {'tablename': db['table_name'],
+#                                                                     'record_id': record_id})
+#
+#     # for i in range(record_id, total_records):
+#     #     db['db'][str(record_id)] = db['db'][record_id + 1]
+#     del db['db'][str(total_records)]
 
 
 def data_records_amount(db_data: dict) -> int:
@@ -111,4 +128,6 @@ def data_records_amount(db_data: dict) -> int:
     conn = sqlite3.connect(db_data['db_path'])
     c = conn.cursor()
     c.execute('SELECT Count(*) FROM :tablename', {'tablename': db_data['table_name']})
-    return c.fetchone()[0]
+    res = c.fetchone()[0]
+    conn.close()
+    return res
