@@ -3,5 +3,9 @@ __license__ = "GPLv3"
 # Custom errors (no backend found, no such id, cannot add to db, field with this name already exists, etc) go here
 
 
-class KrakenlibException(Exception):
+class KrakenousException(Exception):
+    pass
+
+
+class KrakenousNotImplemented(Exception):
     pass
