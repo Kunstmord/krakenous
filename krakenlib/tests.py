@@ -67,7 +67,7 @@ class TestShelve(unittest.TestCase):
         self.dataset.insert_single(5, 'extra_field', 'extra number', overwrite_existing=True)
         assert self.dataset.feature_exists(5, 'extra_field') is True  # inserts something
         assert self.dataset.feature_exists(4, 'extra_field') is False  # inserts only for the correct id
-        self.assertRaises(krakenlib.errors.KrakenlibException, self.dataset.insert_single,
+        self.assertRaises(krakenlib.errors.KrakenousException, self.dataset.insert_single,
                           5, 'extra_field', 3333)
         # ^ does not overwrite by accident and raies correct error
         self.dataset.insert_single(5, 'extra_field', 5555, overwrite_existing=True)

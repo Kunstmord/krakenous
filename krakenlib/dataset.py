@@ -8,7 +8,7 @@ class DataSet(object):
     def __init__(self, backend_name: str, db_data: dict, metadata: dict=None):
         self.total_records = 0
         if backend_name not in ('sqlite', 'shelve'):
-            raise KrakenlibException('Unknown backend ' + backend_name)
+            raise KrakenousException('Unknown backend ' + backend_name)
         elif backend_name == 'shelve':
             global backend
             import krakenlib.backend_shelve as backend
@@ -24,15 +24,15 @@ class DataSet(object):
 
     def get_end_id(self, start_id, end_id):
         if self.total_records == 0:
-            raise KrakenlibException('The dataset is empty!')
+            raise KrakenousException('The dataset is empty!')
         if end_id == -1:
             end_id = self.total_records
         else:
             if end_id > self.total_records:
-                raise KrakenlibException('Incorrect range, end_id=' + str(end_id), ', while total_records='
+                raise KrakenousException('Incorrect range, end_id=' + str(end_id), ', while total_records='
                                          + str(self.total_records))
         if start_id < 0 or start_id > end_id:
-            raise KrakenlibException('start_id cannot be less than 0 or bigger than end_id')
+            raise KrakenousException('start_id cannot be less than 0 or bigger than end_id')
         return end_id
 
     def update_metadata(self, new_metadata: dict):
@@ -86,7 +86,7 @@ class DataSet(object):
         insert a single value (data) for a specific id
         """
         if overwrite_existing is False and self.feature_exists(record_id, feature_name) is True:
-            raise KrakenlibException('Feature with name "' + feature_name + '" already exists')
+            raise KrakenousException('Feature with name "' + feature_name + '" already exists')
         else:
             db = backend.open_db(self.db_data)
             backend.write_data(db, record_id, feature_name, data)
@@ -98,9 +98,9 @@ class DataSet(object):
         end_id = self.get_end_id(start_id, end_id)
         extractor_name = extractor.__name__
         if overwrite_feature is False and self.feature_exists_global(extractor_name) is True:
-            raise KrakenlibException('Feature with name "' + extractor_name + '" already exists')
+            raise KrakenousException('Feature with name "' + extractor_name + '" already exists')
         if extractor_name == 'id':
-            raise KrakenlibException('Cannot write to field "id"')
+            raise KrakenousException('Cannot write to field "id"')
         if writeback != 0:
             db = backend.open_db(self.db_data, True)
         else:
@@ -140,9 +140,9 @@ class DataSet(object):
         :return:
         """
         if self.total_records == 0:
-            raise KrakenlibException('The dataset is empty!')
+            raise KrakenousException('The dataset is empty!')
         if self.backend_name == 'sqlite':
-            raise KrakenlibException('Cannot delete feature when using a sqlite backend')
+            raise KrakenousException('Cannot delete feature when using a sqlite backend')
         else:
             if writeback != 0:
                 db = backend.open_db(self.db_data, True)
@@ -157,9 +157,9 @@ class DataSet(object):
     def rename_feature(self, original_feature_name: str, new_feature_name: str, overwrite_existing: bool=False,
                        writeback: int=0):
         if self.total_records == 0:
-            raise KrakenlibException('The dataset is empty!')
+            raise KrakenousException('The dataset is empty!')
         if overwrite_existing is False and self.feature_exists_global(new_feature_name):
-            raise KrakenlibException('Feature with name "' + new_feature_name + '" already exists')
+            raise KrakenousException('Feature with name "' + new_feature_name + '" already exists')
 
         if self.backend_name == 'shelve':
             if writeback != 0:
@@ -181,10 +181,10 @@ class DataSet(object):
             else:
                 db = backend.open_db(self.db_data, False)
         if self.total_records == 0:
-            raise KrakenlibException('The dataset is empty!')
+            raise KrakenousException('The dataset is empty!')
         for record_id in record_ids:
             if record_id > self.total_records:
-                raise KrakenlibException('Record with id=' + str(record_id) + ' does not exist!')
+                raise KrakenousException('Record with id=' + str(record_id) + ' does not exist!')
             else:
                 backend.delete_record(db, record_id, self.total_records)
                 if writeback != 0 and record_id % writeback == 0:
@@ -193,10 +193,10 @@ class DataSet(object):
 
     def force_write_feature(self, feature_name: str, feature: list, writeback: int=0):
         if len(feature) != self.total_records:
-            raise KrakenlibException('Inconsistent length (length of feature list is ' + str(len(feature)) +
+            raise KrakenousException('Inconsistent length (length of feature list is ' + str(len(feature)) +
                                      ', total number of records - ' + str(self.total_records))
         elif feature_name == 'id':
-            raise KrakenlibException('Cannot write to field "id"')
+            raise KrakenousException('Cannot write to field "id"')
         else:
             if writeback != 0:
                 db = backend.open_db(self.db_data, True)
@@ -230,7 +230,7 @@ class DataSet(object):
     def single_feature(self, feature_name: str, start_id: int=1, end_id: int=-1):
         end_id = self.get_end_id(start_id, end_id)
         if self.feature_exists_global(feature_name) is False:
-            raise KrakenlibException('Feature "' + feature_name + '" does not exist')
+            raise KrakenousException('Feature "' + feature_name + '" does not exist')
         db = backend.open_db(self.db_data)
         result = []
         for record_id in range(start_id, end_id + 1):
@@ -247,7 +247,7 @@ class DataSet(object):
         end_id = self.get_end_id(start_id, end_id)
         for feature_name in feature_names:
             if self.feature_exists_global(feature_name) is False:
-                raise KrakenlibException('Feature "' + feature_name + '" does not exist')
+                raise KrakenousException('Feature "' + feature_name + '" does not exist')
         db = backend.open_db(self.db_data)
         result = []
         for record_id in range(start_id, end_id + 1):
@@ -262,7 +262,7 @@ class DataSet(object):
         assume that the first element has all the features? or combine all? or return all + all separate variations?
         """
         if self.total_records == 0:
-            raise KrakenlibException('The dataset is empty!')
+            raise KrakenousException('The dataset is empty!')
         db = backend.open_db(self.db_data)
         return_list = backend.all_data_names(db, 1)
         backend.close_db(db)
@@ -312,7 +312,7 @@ class DataSet(object):
         return True if the condition is satisfied, False otherwise)
         """
         if self.feature_exists_global(feature_name) is False:
-            raise KrakenlibException('Feature "' + feature_name + '" does not exist')
+            raise KrakenousException('Feature "' + feature_name + '" does not exist')
         else:
             result = []
             for data_record in self.yield_data_records(('id', feature_name,)):
