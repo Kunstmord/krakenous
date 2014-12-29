@@ -3,7 +3,7 @@ import unittest
 from krakenlib.dataset import DataSet
 from krakenlib.prerolled import folder_tentacle, convert_multiple_features_numpy, convert_single_feature_numpy
 import os.path
-from os import makedirs
+from os import makedirs, rmdir, remove
 import numpy as np
 import krakenlib.errors
 
@@ -102,15 +102,6 @@ class TestShelve(unittest.TestCase):
         assert 'string_feature' in feature_names
         assert 'numpy_feature' in feature_names  # the features were returned
 
-    def test_return_single_feature(self):
-        feature = self.dataset.single_feature('string_feature')
-        assert len(feature) == self.dataset.total_records  # default values work correctly, returns data for all records
-        assert feature[0] == 'test string feature'  # returns the correct data value
-        feature = self.dataset.single_feature('string_feature', start_id=3)
-        assert len(feature) == self.dataset.total_records - 2
-        feature = self.dataset.single_feature('string_feature', start_id=4, end_id=7)
-        assert len(feature) == 4  # and the start_id, end_id parameters work correctly
-
     def test_append_and_delete_data_record(self):
         current_records = self.dataset.total_records
         self.dataset.append_data_record({'fake_extractor': 'NOT THE MEANING OF LIFE AT ALL'})
@@ -130,6 +121,22 @@ class TestShelve(unittest.TestCase):
                                           overwrite_feature=True, j=10)
         assert self.dataset.single_data_record(5, ('argfeature_test',))['argfeature_test'] == 15
 
+    def test_return_single_feature(self):
+        self.dataset.extract_feature_full(string_feature, overwrite_feature=True)
+        feature = self.dataset.single_feature('string_feature')
+        assert len(feature) == self.dataset.total_records  # default values work correctly, returns data for all records
+        assert feature[0] == 'test string feature'  # returns the correct data value
+        feature = self.dataset.single_feature('string_feature', start_id=3)
+        assert len(feature) == self.dataset.total_records - 2
+        feature = self.dataset.single_feature('string_feature', start_id=4, end_id=7)
+        assert len(feature) == 4  # and the start_id, end_id parameters work correctly
+
+    def tearDown(self):
+        for i in range(10):
+            remove('testfolder/' + str(i))
+        rmdir('testfolder')
+        remove('testshelve.db')
+
 
 class TestNumpyConvert(unittest.TestCase):
     def setUp(self):
@@ -145,6 +152,8 @@ class TestNumpyConvert(unittest.TestCase):
                 for i in range(10):
                     open('testfolder/' + str(i), 'a').close()
             self.dataset.populate(folder_tentacle, 'testfolder', 'filename')
+        self.dataset.extract_feature_simple(numpy_feature)
+        self.dataset.extract_feature_simple(numpy_feature2)
 
     def test_return_single_feature_numpy(self):
         feature = convert_single_feature_numpy(self.dataset, 'numpy_feature')
@@ -159,6 +168,12 @@ class TestNumpyConvert(unittest.TestCase):
         assert feature.shape == (self.dataset.total_records, 5,)
         assert feature[0, 1] == 0
         assert feature[0, 4] == 1  # converts multiple features for each record into a single numpy array correctly
+
+    def tearDown(self):
+        for i in range(10):
+            remove('testfolder/' + str(i))
+        rmdir('testfolder')
+        remove('testshelve.db')
 
 
 if __name__ == '__main__':
