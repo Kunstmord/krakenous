@@ -54,13 +54,21 @@ class DataSet(object):
         tentacle is a generator, returns a dictionary of stuff
         """
         records_added = 0
-        if self.backend_name == 'shelve':
+        if self.backend_name in ('shelve', 'sqlite',):
             if writeback != 0:
                 db = backend.open_db(self.db_data, True)
             else:
                 db = backend.open_db(self.db_data, False)
-        for i in tentacle(*args, **kwargs):
-            self._append_data_record_open(i, db)
+        for tentacle_dict in tentacle(*args, **kwargs):
+            if self.backend_name == 'sqlite':
+                try:
+                    all_names = self.feature_names()
+                except KrakenousException:
+                    all_names = []
+                for tentacle_key in tentacle_dict:
+                    if tentacle_key not in all_names:
+                        backend.create_new_column(db, tentacle_key)
+            self._append_data_record_open(tentacle_dict, db)
             records_added += 1
             if writeback != 0 and self.total_records % writeback == 0:
                 backend.commit_db(db)
@@ -72,10 +80,15 @@ class DataSet(object):
         """
         do not write id field! (if exists in dict) (doesn't concern shelve)
         """
-        if self.backend_name == 'shelve':
+        if self.backend_name in ('shelve', 'sqlite',):
             db = backend.open_db(self.db_data)
-        for data_entry in data_record:
-            backend.write_data(db, self.total_records + 1, data_entry, data_record[data_entry])
+        if self.backend_name == 'shelve':
+            for data_entry in data_record:
+                backend.write_data(db, self.total_records + 1, data_entry, data_record[data_entry])
+        elif self.backend_name == 'sqlite':
+            if 'id' in data_record.keys():
+                raise KrakenousException('Cannot write to id column')
+            backend.append_data_record(db, 1, data_record)
         self.total_records += 1
         backend.close_db(db)
 
@@ -85,17 +98,20 @@ class DataSet(object):
         """
         self.total_records += 1
 
-        for data_entry in data_record:
-            backend.write_data(db, self.total_records, data_entry, data_record[data_entry])
+        backend.append_data_record(db, self.total_records, data_record)
+        # for data_entry in data_record:
+        #     backend.write_data(db, self.total_records, data_entry, data_record[data_entry])
 
     def insert_single(self, record_id: int, feature_name: str, data, overwrite_existing: bool=False):
         """
         insert a single value (data) for a specific id
         """
-        if overwrite_existing is False and self.feature_exists(record_id, feature_name) is True:
+        if not overwrite_existing and self.feature_exists(record_id, feature_name):
             raise KrakenousException('Feature with name "' + feature_name + '" already exists')
         else:
             db = backend.open_db(self.db_data)
+            if self.backend_name == 'sqlite' and feature_name not in self.feature_names():
+                backend.create_new_column(db, feature_name)
             backend.write_data(db, record_id, feature_name, data)
             backend.close_db(db)
 
@@ -104,7 +120,8 @@ class DataSet(object):
                                        verbose: int=0, writeback: int=0, overwrite_feature: bool=False, **kwargs):
         end_id = self.get_end_id(start_id, end_id)
         extractor_name = extractor.__name__
-        if overwrite_feature is False and self.feature_exists_global(extractor_name) is True:
+        global_existence = self.feature_exists_global(extractor_name)
+        if not overwrite_feature and global_existence:
             raise KrakenousException('Feature with name "' + extractor_name + '" already exists')
         if extractor_name == 'id':
             raise KrakenousException('Cannot write to field "id"')
@@ -113,6 +130,8 @@ class DataSet(object):
         else:
             db = backend.open_db(self.db_data, False)
 
+        if self.backend_name == 'sqlite' and not global_existence:
+            backend.create_new_column(db, extractor_name)
         for record_id in range(start_id, end_id + 1):
             additional_data = {}
             additional_metadata = {}
@@ -230,13 +249,10 @@ class DataSet(object):
         return feature_exists
 
     def feature_exists_global(self, feature_name: str) -> bool:
-        db = backend.open_db(self.db_data)
-        for record_id in range(self.total_records):
-            if self._feature_exists_open(record_id + 1, feature_name, db) is True:
-                backend.close_db(db)
-                return True
-        backend.close_db(db)
-        return False
+        if feature_name in self.feature_names():
+            return True
+        else:
+            return False
 
     def single_feature(self, feature_name: str, start_id: int=1, end_id: int=-1):
         end_id = self.get_end_id(start_id, end_id)
@@ -266,7 +282,7 @@ class DataSet(object):
         backend.close_db(db)
         return result
 
-    def feature_names(self) -> list:
+    def feature_names(self, record_id=-1) -> list:
         """
         return a list of tuples (<column_name>, <length>) - if number, length = 1, if list/np-array, length
         if string - what if it's a string? -1?
@@ -275,7 +291,18 @@ class DataSet(object):
         if self.total_records == 0:
             raise KrakenousException('The dataset is empty!')
         db = backend.open_db(self.db_data)
-        return_list = backend.all_data_names(db, 1)
+        return_list = []
+        if self.backend_name == 'shelve':
+            if record_id == -1:
+                for r_id in range(self.total_records):
+                    tmp_list = backend.all_data_names(db, r_id + 1)
+                    for tmp_f in tmp_list:
+                        if tmp_f not in return_list:
+                            return_list.append(tmp_f)
+            else:
+                return_list = backend.all_data_names(db, record_id)
+        elif self.backend_name == 'sqlite':
+            return_list = backend.all_data_names(db)
         backend.close_db(db)
         return return_list
 
@@ -292,7 +319,6 @@ class DataSet(object):
         return result_dict
 
     def single_data_record(self, record_id, column_names: tuple=()) -> dict:
-        # TODO - read_all_data returns dict for shelve and list for SQL backends
         """
         returns a dict
         """
