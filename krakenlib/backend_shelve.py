@@ -43,6 +43,14 @@ def write_data(db: dict, record_id: int, data_name: str, data):
             db['db'][str(record_id)] = tmp_dict
 
 
+def append_data_record(db: dict, record_id: int, data_dict: dict):
+    """append a record with id=record_id
+    """
+
+    for data_entry in data_dict:
+        write_data(db, record_id, data_entry, data_dict[data_entry])
+
+
 def read_single_data(db: dict, record_id: int, data_name: str):
     """Return the contents of a data column specified by data_name for a given record_id
     """
