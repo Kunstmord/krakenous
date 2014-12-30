@@ -2,6 +2,7 @@ __author__ = 'George Oblapenko, Viktor Evstratov'
 __license__ = "GPLv3"
 from krakenlib.errors import *
 import os.path
+from json import dumps
 
 
 class DataSet(object):
@@ -102,22 +103,28 @@ class DataSet(object):
         # for data_entry in data_record:
         #     backend.write_data(db, self.total_records, data_entry, data_record[data_entry])
 
-    def insert_single(self, record_id: int, feature_name: str, data, overwrite_existing: bool=False):
+    def insert_single(self, record_id: int, feature_name: str, data, overwrite_existing: bool=False, serializer=None):
         """
         insert a single value (data) for a specific id
         """
         if not overwrite_existing and self.feature_exists(record_id, feature_name):
             raise KrakenousException('Feature with name "' + feature_name + '" already exists')
-        else:
-            db = backend.open_db(self.db_data)
-            if self.backend_name == 'sqlite' and feature_name not in self.feature_names():
-                backend.create_new_column(db, feature_name)
+        if self.backend_name == 'sqlite':
+            if not serializer:
+                serializer = dumps
+        db = backend.open_db(self.db_data)
+        if self.backend_name == 'sqlite' and feature_name not in self.feature_names():
+            backend.create_new_column(db, feature_name)
+        if self.backend_name == 'shelve':
             backend.write_data(db, record_id, feature_name, data)
-            backend.close_db(db)
+        else:
+            backend.write_data(db, record_id, feature_name, data, serializer)
+        backend.close_db(db)
 
     def extract_feature_full_for_range(self, start_id: int, end_id: int,
                                        extractor, *args, column_names: tuple=(), metadata_names: tuple=(),
-                                       verbose: int=0, writeback: int=0, overwrite_feature: bool=False, **kwargs):
+                                       verbose: int=0, writeback: int=0, overwrite_feature: bool=False,
+                                       serializer=None, **kwargs):
         end_id = self.get_end_id(start_id, end_id)
         extractor_name = extractor.__name__
         global_existence = self.feature_exists_global(extractor_name)
@@ -130,8 +137,11 @@ class DataSet(object):
         else:
             db = backend.open_db(self.db_data, False)
 
-        if self.backend_name == 'sqlite' and not global_existence:
-            backend.create_new_column(db, extractor_name)
+        if self.backend_name == 'sqlite':
+            if not global_existence:
+                backend.create_new_column(db, extractor_name)
+            if not serializer:
+                serializer = dumps
         for record_id in range(start_id, end_id + 1):
             additional_data = {}
             additional_metadata = {}
@@ -139,8 +149,13 @@ class DataSet(object):
                 additional_data[column_name] = backend.read_single_data(db, record_id, column_name)
             for metadata_name in metadata_names:
                 additional_metadata[metadata_name] = self.metadata[metadata_name]
-            backend.write_data(db, record_id, extractor_name, extractor(additional_data, additional_metadata,
+            if self.backend_name == 'shelve':
+                backend.write_data(db, record_id, extractor_name, extractor(additional_data, additional_metadata,
                                                                             *args, **kwargs))
+            elif self.backend_name == 'sqlite':
+                backend.write_data(db, record_id, extractor_name, extractor(additional_data, additional_metadata,
+                                                                            *args, **kwargs), serializer)
+
             if verbose != 0 and record_id % verbose == 0:
                 print(record_id)
             if writeback != 0 and record_id % writeback == 0:
@@ -150,13 +165,19 @@ class DataSet(object):
     def extract_feature_simple(self, extractor, *args, **kwargs):
         self.extract_feature_full_for_range(1, -1, extractor, *args, column_names=(),
                                             metadata_names=(), verbose=0,
-                                            writeback=0, overwrite_feature=False, **kwargs)
+                                            writeback=0, overwrite_feature=False, serializer=None, **kwargs)
+
+    def extract_feature_simple_custom_serializer(self, extractor, serializer, *args, **kwargs):
+        self.extract_feature_full_for_range(1, -1, extractor, *args, column_names=(),
+                                            metadata_names=(), verbose=0,
+                                            writeback=0, overwrite_feature=False, serializer=serializer, **kwargs)
 
     def extract_feature_full(self, extractor, *args, column_names: tuple=(), metadata_names: tuple=(), verbose: int=0,
-                             writeback: int=0, overwrite_feature: bool=False, **kwargs):
+                             writeback: int=0, overwrite_feature: bool=False, serializer=None, **kwargs):
         self.extract_feature_full_for_range(1, -1, extractor, *args, column_names=column_names,
                                             metadata_names=metadata_names, verbose=verbose,
-                                            writeback=writeback, overwrite_feature=overwrite_feature, **kwargs)
+                                            writeback=writeback, overwrite_feature=overwrite_feature,
+                                            serializer=serializer, **kwargs)
 
     def delete_feature(self, feature_name: str, writeback: int=0):
         """
