@@ -9,3 +9,7 @@ class KrakenousException(Exception):
 
 class KrakenousNotImplemented(Exception):
     pass
+
+
+class KrakenousUnsupportedOperation(Exception):
+    pass
