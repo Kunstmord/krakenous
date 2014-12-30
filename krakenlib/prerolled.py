@@ -11,6 +11,7 @@ from os import walk
 from krakenlib.dataset import DataSet
 from krakenlib.misc import element_length
 from krakenlib.errors import KrakenousException
+from json import dumps
 
 
 def csv_tentacle(path_to_file, id_column_number, missing_element=-1, custom_mapping: list=None):
@@ -154,3 +155,7 @@ def convert_multiple_features_numpy(dataset: DataSet, feature_names: tuple, star
         return result
     else:
         raise KrakenousException('No features that can be fit into a numpy array found in the passed tuple')
+
+
+def numpy_array_serializer(array: np.ndarray) -> str:
+    return dumps(array.tolist())
