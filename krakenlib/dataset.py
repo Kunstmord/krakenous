@@ -6,14 +6,21 @@ import os.path
 
 class DataSet(object):
     def __init__(self, backend_name: str, db_data: dict, metadata: dict=None):
+        global backend
         self.total_records = 0
         if backend_name not in ('sqlite', 'shelve'):
             raise KrakenousException('Unknown backend ' + backend_name)
         elif backend_name == 'shelve':
-            global backend
             import krakenlib.backend_shelve as backend
             if os.path.isfile(db_data['db_path'] + '.db'):  # shelve makes files end in .db
                 self.total_records = backend.data_records_amount(db_data)
+        elif backend_name == 'sqlite':
+            import krakenlib.backend_sqlite as backend
+            if os.path.isfile(db_data['db_path']):
+                self.total_records = backend.data_records_amount(db_data)
+            else:
+                backend.create_db(db_data)
+
         self.db_data = db_data
         self.backend_name = backend_name
 
@@ -139,10 +146,10 @@ class DataSet(object):
         :param writeback:
         :return:
         """
+        if self.backend_name == 'sqlite':
+            raise KrakenousUnsupportedOperation('Deletion of features is not available for the SQLite backend')
         if self.total_records == 0:
             raise KrakenousException('The dataset is empty!')
-        if self.backend_name == 'sqlite':
-            raise KrakenousException('Cannot delete feature when using a sqlite backend')
         else:
             if writeback != 0:
                 db = backend.open_db(self.db_data, True)
@@ -156,6 +163,8 @@ class DataSet(object):
 
     def rename_feature(self, original_feature_name: str, new_feature_name: str, overwrite_existing: bool=False,
                        writeback: int=0):
+        if self.backend_name == 'sqlite':
+            raise KrakenousUnsupportedOperation('Renaming of features is not available for the SQLite backend')
         if self.total_records == 0:
             raise KrakenousException('The dataset is empty!')
         if overwrite_existing is False and self.feature_exists_global(new_feature_name):
@@ -172,7 +181,7 @@ class DataSet(object):
                 backend.delete_data(db, record_id + 1, original_feature_name)
                 if writeback != 0 and record_id % writeback == 0:
                     backend.commit_db(db)
-        backend.close_db(db)
+            backend.close_db(db)
 
     def delete_records(self, record_ids: tuple, writeback: int=0):
         if self.backend_name == 'shelve':
@@ -180,6 +189,8 @@ class DataSet(object):
                 db = backend.open_db(self.db_data, True)
             else:
                 db = backend.open_db(self.db_data, False)
+        elif self.backend_name == 'sqlite':
+            raise KrakenousNotImplemented('Deleting records is not implemented for the SQLite backend')
         if self.total_records == 0:
             raise KrakenousException('The dataset is empty!')
         for record_id in record_ids:
@@ -288,7 +299,13 @@ class DataSet(object):
         result_dict = {}
         db = backend.open_db(self.db_data)
         if column_names == ():
-            result_dict = backend.read_all_data(db, record_id)
+            if self.backend_name == 'shelve':
+                result_dict = backend.read_all_data(db, record_id)
+            elif self.backend_name == 'sqlite':
+                tmp_res = backend.read_all_data(db, record_id)
+                all_column_names = backend.all_data_names(db)
+                for column_name_enum in enumerate(all_column_names):
+                    result_dict[column_name_enum[1]] = tmp_res[column_name_enum[0]]
         else:
             for column_name in column_names:
                 result_dict[column_name] = backend.read_single_data(db, record_id, column_name)
