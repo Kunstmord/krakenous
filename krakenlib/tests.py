@@ -1,7 +1,8 @@
 __author__ = 'Viktor Evstratov, George Oblapenko'
 import unittest
 from krakenlib.dataset import DataSet
-from krakenlib.prerolled import folder_tentacle, convert_multiple_features_numpy, convert_single_feature_numpy
+from krakenlib.prerolled import folder_tentacle, convert_multiple_features_numpy, convert_single_feature_numpy,\
+    numpy_array_serializer
 import os.path
 from os import makedirs, rmdir, remove
 import numpy as np
@@ -18,6 +19,10 @@ def a_very_fake_extractor(add_data, add_metadata):
 
 def ext3(add_data, add_metadata):
     return 23930
+
+
+def list_feature_test(add_data, add_metadata):
+    return [1, 3, 4]
 
 
 def argfeature_test(add_data, add_metadata, i, j=2):
@@ -176,9 +181,10 @@ class TestSQLite(unittest.TestCase):
         assert self.dataset.single_data_record(5, ('extra_field',))['extra_field'] == 5555
         # overwrite works correctly
 
-    def test_feature_names(self):
+    def test_feature_names_and_serialization(self):
         self.dataset.extract_feature_full(a_very_fake_extractor, overwrite_feature=True)
-        self.dataset.extract_feature_full(numpy_feature, overwrite_feature=True)
+        self.dataset.extract_feature_full(list_feature_test, overwrite_feature=True)
+        self.dataset.extract_feature_full(numpy_feature, overwrite_feature=True, serializer=numpy_array_serializer)
         self.dataset.extract_feature_full(string_feature, overwrite_feature=True)
         feature_names = self.dataset.feature_names()
         assert 'a_very_fake_extractor' in feature_names
@@ -188,7 +194,7 @@ class TestSQLite(unittest.TestCase):
     def test_feature_args(self):
         self.dataset.extract_feature_full(argfeature_test, 5,
                                           column_names=(), metadata_names=(), verbose=0, writeback=0,
-                                          overwrite_feature=True, j=10)
+                                          overwrite_feature=True, serializer=None, j=10)
         assert self.dataset.single_data_record(5, ('argfeature_test',))['argfeature_test'] == 15
 
     def test_return_single_feature(self):
