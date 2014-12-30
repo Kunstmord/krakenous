@@ -138,6 +138,76 @@ class TestShelve(unittest.TestCase):
         remove('testshelve.db')
 
 
+class TestSQLite(unittest.TestCase):
+    def setUp(self):
+        """
+        This creates a DataSet which uses the shelve backend. It also creates a folder with 10 files (named 0 to 9)
+        to use with the folder_tentacle (if a testfolder already exists, this just reaches inside it and grabs what's
+        there)
+        """
+        self.dataset = DataSet('sqlite', {'db_path': 'testsqlite.db', 'table_name': 'test_table'})  # we will use the folder tentacle for testing
+        if self.dataset.total_records == 0:
+            if not os.path.isdir('testfolder'):
+                makedirs('testfolder')
+                for i in range(10):
+                    open('testfolder/' + str(i), 'a').close()
+            self.dataset.populate(folder_tentacle, 'testfolder', 'filename')
+
+    def test_extraction(self):
+        self.dataset.extract_feature_full(fake_extractor, 23, overwrite_feature=True)
+        assert self.dataset.feature_exists_global('fake_extractor') is True  # the feature exists
+
+    def test_extraction_value(self):
+        self.dataset.extract_feature_full(fake_extractor, 46, overwrite_feature=True)
+        assert self.dataset.single_data_record(1, ('fake_extractor',))['fake_extractor'] == 46
+        # the feature value is correct
+        self.dataset.extract_feature_full(fake_extractor, 'meaning of life', overwrite_feature=True)
+        assert self.dataset.single_data_record(1, ('fake_extractor',))['fake_extractor'] == 'meaning of life'
+        # feature overwriting works correctly
+
+    def test_insert_single_value(self):
+        self.dataset.insert_single(5, 'extra_field', 'extra number', overwrite_existing=True)
+        assert self.dataset.feature_exists(5, 'extra_field') is True  # inserts something
+        assert self.dataset.feature_exists(4, 'extra_field') is False  # inserts only for the correct id
+        self.assertRaises(krakenlib.errors.KrakenousException, self.dataset.insert_single,
+                          5, 'extra_field', 3333)
+        # ^ does not overwrite by accident and raies correct error
+        self.dataset.insert_single(5, 'extra_field', 5555, overwrite_existing=True)
+        assert self.dataset.single_data_record(5, ('extra_field',))['extra_field'] == 5555
+        # overwrite works correctly
+
+    def test_feature_names(self):
+        self.dataset.extract_feature_full(a_very_fake_extractor, overwrite_feature=True)
+        self.dataset.extract_feature_full(numpy_feature, overwrite_feature=True)
+        self.dataset.extract_feature_full(string_feature, overwrite_feature=True)
+        feature_names = self.dataset.feature_names()
+        assert 'a_very_fake_extractor' in feature_names
+        assert 'string_feature' in feature_names
+        assert 'numpy_feature' in feature_names  # the features were returned
+
+    def test_feature_args(self):
+        self.dataset.extract_feature_full(argfeature_test, 5,
+                                          column_names=(), metadata_names=(), verbose=0, writeback=0,
+                                          overwrite_feature=True, j=10)
+        assert self.dataset.single_data_record(5, ('argfeature_test',))['argfeature_test'] == 15
+
+    def test_return_single_feature(self):
+        self.dataset.extract_feature_full(string_feature, overwrite_feature=True)
+        feature = self.dataset.single_feature('string_feature')
+        assert len(feature) == self.dataset.total_records  # default values work correctly, returns data for all records
+        assert feature[0] == 'test string feature'  # returns the correct data value
+        feature = self.dataset.single_feature('string_feature', start_id=3)
+        assert len(feature) == self.dataset.total_records - 2
+        feature = self.dataset.single_feature('string_feature', start_id=4, end_id=7)
+        assert len(feature) == 4  # and the start_id, end_id parameters work correctly
+
+    def tearDown(self):
+        for i in range(10):
+            remove('testfolder/' + str(i))
+        rmdir('testfolder')
+        remove('testsqlite.db')
+
+
 class TestNumpyConvert(unittest.TestCase):
     def setUp(self):
         """
