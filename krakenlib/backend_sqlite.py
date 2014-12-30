@@ -41,29 +41,31 @@ def create_new_column(db: dict, data_name: str):
     db['db'].execute(sql_string)
 
 
-def write_data(db: dict, record_id: int, data_name: str, data):
-    sql_string = 'UPDATE ' + db['table_name'] + ' SET ' + data_name + '=' + dumps(data) + ' WHERE id=' + str(record_id)
-    db['db'].execute(sql_string)
+def write_data(db: dict, record_id: int, data_name: str, data, serializer):
+    sql_string = 'UPDATE ' + db['table_name'] + ' SET ' + data_name + '=? WHERE id=?'
+    # sql_string = 'UPDATE ' + db['table_name'] + ' SET ' + data_name + '"=' + serializer(data)\
+    #              + '" WHERE id=' + str(record_id)
+    db['db'].execute(sql_string, (serializer(data), record_id))
 
 
 def append_data_record(db: dict, record_id: int, data_dict: dict):
     c_names = '('
     c_vals = '('
+    insertion_data = []
     for k in data_dict.keys():
         c_names += k + ', '
-        c_vals += dumps(data_dict[k]) + ', '
+        c_vals += '?, '
+        insertion_data.append(dumps(data_dict[k]))
     c_names = c_names[:-2] + ')'
     c_vals = c_vals[:-2] + ')'
     sql_string = 'INSERT INTO ' + db['table_name'] + c_names + ' VALUES ' + c_vals
-    db['db'].execute(sql_string)
+    db['db'].execute(sql_string, tuple(insertion_data))
 
 
 def read_single_data(db: dict, record_id: int, data_name: str):
     """Return the contents of a data column specified by data_name for a given record_id
     """
     sql_string = 'SELECT ' + data_name + ' FROM ' + db['table_name'] + ' WHERE id=' + str(record_id)
-    # db['db'].execute('SELECT :data_name FROM :tablename WHERE id=:record_id',
-    #                  {'data_name': data_name, 'tablename': db['table_name'], 'record_id': record_id})
     db['db'].execute(sql_string)
     return loads(db['db'].fetchone()[0])
 
@@ -82,8 +84,6 @@ def read_all_data(db: dict, record_id: int):
     Return the contents of all data columns for a given record_id
     """
     sql_string = 'SELECT * FROM ' + db['table_name'] + ' WHERE id=' + str(record_id)
-    # db['db'].execute('SELECT * FROM :tablename WHERE id=:record_id', {'tablename': db['table_name'],
-    #                                                                   'record_id': record_id})
     db['db'].execute(sql_string)
     res = db['db'].fetchone()
     return list(map(lambda x: loads(x), res[1:]))
@@ -93,9 +93,6 @@ def data_exists(db: dict, record_id: int, data_name: str) -> bool:
     """Check if data exists for a given column name and record_id
     """
     sql_string = 'SELECT ' + data_name + ' FROM ' + db['table_name'] + ' WHERE id=' + str(record_id)
-    # db['db'].execute('SELECT :data_name FROM :tablename WHERE id=:record_id', {'data_name': data_name,
-    #                                                                            'tablename': db['table_name'],
-    #                                                                            'record_id': record_id})
     db['db'].execute(sql_string)
     if not db['db'].fetchone()[0]:
         return False
@@ -130,7 +127,6 @@ def data_records_amount(db_data: dict) -> int:
     conn = sqlite3.connect(db_data['db_path'])
     c = conn.cursor()
     sql_string = 'SELECT Count(*) FROM ' + db_data['table_name']
-    # c.execute('SELECT Count(*) FROM :tablename', {'tablename': db_data['table_name']})
     c.execute(sql_string)
     res = c.fetchone()[0]
     conn.close()
