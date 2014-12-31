@@ -172,6 +172,16 @@ class DataSet(object):
                                             metadata_names=(), verbose=0,
                                             writeback=0, overwrite_feature=False, serializer=serializer, **kwargs)
 
+    def extract_dependent_feature_simple(self, extractor, *args, column_names=(), **kwargs):
+        self.extract_feature_full_for_range(1, -1, extractor, *args, column_names=column_names,
+                                            metadata_names=(), verbose=0,
+                                            writeback=0, overwrite_feature=False, serializer=None, **kwargs)
+
+    def extract_dependent_feature_simple_custom_serializer(self, extractor, serializer, *args, column_names=(), **kwargs):
+        self.extract_feature_full_for_range(1, -1, extractor, *args, column_names=column_names,
+                                            metadata_names=(), verbose=0,
+                                            writeback=0, overwrite_feature=False, serializer=serializer, **kwargs)
+
     def extract_feature_full(self, extractor, *args, column_names: tuple=(), metadata_names: tuple=(), verbose: int=0,
                              writeback: int=0, overwrite_feature: bool=False, serializer=None, **kwargs):
         self.extract_feature_full_for_range(1, -1, extractor, *args, column_names=column_names,
