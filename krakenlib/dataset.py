@@ -314,11 +314,6 @@ class DataSet(object):
         return result
 
     def feature_names(self, record_id=-1) -> list:
-        """
-        return a list of tuples (<column_name>, <length>) - if number, length = 1, if list/np-array, length
-        if string - what if it's a string? -1?
-        assume that the first element has all the features? or combine all? or return all + all separate variations?
-        """
         if self.total_records == 0:
             raise KrakenousException('The dataset is empty!')
         db = backend.open_db(self.db_data)
