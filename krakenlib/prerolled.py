@@ -68,24 +68,34 @@ def dump_dataset(dataset: DataSet, db_data: dict, dump_backend: str, column_name
         return None
 
 
-def copy_to_dataset(dataset1: DataSet, dataset2: DataSet, overwrite: bool=False):
-    pass
+def sync_datasets(dataset1: DataSet, dataset2: DataSet):
+    #TODO what if key doesn't exist in case of the shelve backend?
 
+    if dataset1.total_records != dataset2.total_records:
+        raise KrakenousException('Different numbers of records in datasets')
+    data_names1 = dataset1.feature_names()
+    data_names2 = dataset2.feature_names()
+    from_first_to_second = ['id']
+    from_second_to_first = ['id']
+    for data_name in data_names1:
+        if data_name not in data_names2:
+            from_first_to_second.append(data_name)
+    for data_name in data_names2:
+        if data_name not in data_names1:
+            from_second_to_first.append(data_name)
+    for record in dataset1.yield_data_records(from_first_to_second):
+        for data_name in from_first_to_second:
+            dataset2.insert_single(record['id'], data_name, record[data_name])
+    for record in dataset2.yield_data_records(from_second_to_first):
+        for data_name in from_second_to_first:
+            dataset1.insert_single(record['id'], data_name, record[data_name])
 
-def sync_datasets(dataset1, dataset2, abort_if_collision: bool=True):
-    """
-    Check if data in fields with same name is the same everywhere!!! If not, either rename or abort (specified
-    by abort_if_collision) ds1[myfield] != ds2[myfield] -> ds1[myfield1], ds2[myfield2], copy around
-    use dataset.rename_field for that
-    return either none or a list of tuples of renamed fields: [(myfield1, myfield2)]
-    """
-    pass
 
 
 def convert_single_feature_numpy(dataset: DataSet, feature_name: str, start_id: int=1, end_id: int=-1):
     # always returns a 2d array
     if dataset.total_records == 0:
-        raise KrakenousException('The dataset is empty!')
+        raise KrakenousException('The dataset is empty')
     if end_id == -1:
         end_id = dataset.total_records
     else:
