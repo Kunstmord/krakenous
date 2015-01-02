@@ -2,7 +2,7 @@ __author__ = 'Viktor Evstratov, George Oblapenko'
 import unittest
 from krakenlib.dataset import DataSet
 from krakenlib.prerolled import folder_tentacle, convert_multiple_features_numpy, convert_single_feature_numpy,\
-    numpy_array_serializer
+    numpy_array_serializer, dump_dataset
 import os.path
 from os import makedirs, rmdir, remove
 import numpy as np
@@ -251,6 +251,37 @@ class TestNumpyConvert(unittest.TestCase):
         rmdir('testfolder')
         remove('testshelve.db')
 
+
+class TestDump(unittest.TestCase):
+    def setUp(self):
+        """
+        This creates a DataSet which uses the shelve backend. It also creates a folder with 10 files (named 0 to 9)
+        to use with the folder_tentacle (if a testfolder already exists, this just reaches inside it and grabs what's
+        there)
+        """
+        self.dataset = DataSet('shelve', {'db_path': 'testshelve'})  # we will use the folder tentacle for testing
+        if self.dataset.total_records == 0:
+            if not os.path.isdir('testfolder'):
+                makedirs('testfolder')
+                for i in range(10):
+                    open('testfolder/' + str(i), 'a').close()
+            self.dataset.populate(folder_tentacle, 'testfolder', 'filename')
+        self.dataset.extract_feature_simple(ext3)
+        self.dataset.extract_feature_simple(string_feature)
+
+    def test_full_dump(self):
+        dump_dataset(self.dataset, {'db_path': 'testsqlite1.db', 'table_name': 'test_table'}, 'sqlite')
+        new_dataset = DataSet('sqlite', {'db_path': 'testsqlite1.db', 'table_name': 'test_table'})
+        assert new_dataset.total_records == self.dataset.total_records
+        assert 'string_feature' in new_dataset.feature_names()
+        assert 'ext3' in new_dataset.feature_names()
+
+    def tearDown(self):
+        for i in range(10):
+            remove('testfolder/' + str(i))
+        rmdir('testfolder')
+        remove('testshelve.db')
+        remove('testsqlite1.db')
 
 if __name__ == '__main__':
     unittest.main()
