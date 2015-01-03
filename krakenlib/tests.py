@@ -48,7 +48,7 @@ class TestShelve(unittest.TestCase):
         to use with the folder_tentacle (if a testfolder already exists, this just reaches inside it and grabs what's
         there)
         """
-        self.dataset = DataSet('shelve', {'db_path': 'testshelve'})  # we will use the folder tentacle for testing
+        self.dataset = DataSet(backend='shelve', db_path='testshelve')  # we will use the folder tentacle for testing
         if self.dataset.total_records == 0:
             if not os.path.isdir('testfolder'):
                 makedirs('testfolder')
@@ -150,7 +150,7 @@ class TestSQLite(unittest.TestCase):
         to use with the folder_tentacle (if a testfolder already exists, this just reaches inside it and grabs what's
         there)
         """
-        self.dataset = DataSet('sqlite', {'db_path': 'testsqlite.db', 'table_name': 'test_table'})  # we will use the folder tentacle for testing
+        self.dataset = DataSet(backend='sqlite', db_path='testsqlite', table_name='test_table')
         if self.dataset.total_records == 0:
             if not os.path.isdir('testfolder'):
                 makedirs('testfolder')
@@ -211,7 +211,7 @@ class TestSQLite(unittest.TestCase):
         for i in range(10):
             remove('testfolder/' + str(i))
         rmdir('testfolder')
-        remove('testsqlite.db')
+        remove('testsqlite')
 
 
 class TestNumpyConvert(unittest.TestCase):
@@ -221,7 +221,7 @@ class TestNumpyConvert(unittest.TestCase):
         to use with the folder_tentacle (if a testfolder already exists, this just reaches inside it and grabs what's
         there)
         """
-        self.dataset = DataSet('shelve', {'db_path': 'testshelve'})  # we will use the folder tentacle for testing
+        self.dataset = DataSet(backend='shelve', db_path='testshelve')  # we will use the folder tentacle for testing
         if self.dataset.total_records == 0:
             if not os.path.isdir('testfolder'):
                 makedirs('testfolder')
@@ -259,7 +259,7 @@ class TestDump(unittest.TestCase):
         to use with the folder_tentacle (if a testfolder already exists, this just reaches inside it and grabs what's
         there)
         """
-        self.dataset = DataSet('shelve', {'db_path': 'testshelve'})  # we will use the folder tentacle for testing
+        self.dataset = DataSet(backend='shelve', db_path='testshelve')  # we will use the folder tentacle for testing
         if self.dataset.total_records == 0:
             if not os.path.isdir('testfolder'):
                 makedirs('testfolder')
@@ -270,8 +270,8 @@ class TestDump(unittest.TestCase):
         self.dataset.extract_feature_simple(string_feature)
 
     def test_full_dump(self):
-        dump_dataset(self.dataset, {'db_path': 'testsqlite1.db', 'table_name': 'test_table'}, 'sqlite')
-        new_dataset = DataSet('sqlite', {'db_path': 'testsqlite1.db', 'table_name': 'test_table'})
+        new_dataset = DataSet(backend='sqlite', db_path='testsqlite1', table_name='test_table')
+        dump_dataset(self.dataset, new_dataset)
         assert new_dataset.total_records == self.dataset.total_records
         assert 'string_feature' in new_dataset.feature_names()
         assert 'ext3' in new_dataset.feature_names()
@@ -281,7 +281,7 @@ class TestDump(unittest.TestCase):
             remove('testfolder/' + str(i))
         rmdir('testfolder')
         remove('testshelve.db')
-        remove('testsqlite1.db')
+        remove('testsqlite1')
 
 if __name__ == '__main__':
     unittest.main()
