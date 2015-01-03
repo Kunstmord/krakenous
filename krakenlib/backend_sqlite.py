@@ -48,14 +48,17 @@ def write_data(db: dict, record_id: int, data_name: str, data, serializer):
     db['db'].execute(sql_string, (serializer(data), record_id))
 
 
-def append_data_record(db: dict, record_id: int, data_dict: dict):
+def append_data_record(db: dict, record_id: int, data_dict: dict, serializers=None):
     c_names = '('
     c_vals = '('
     insertion_data = []
-    for k in data_dict.keys():
+    for k in data_dict:
+        if serializers and k in serializers:
+            insertion_data.append(serializers[k](data_dict[k]))
+        else:
+            insertion_data.append(dumps(data_dict[k]))
         c_names += k + ', '
         c_vals += '?, '
-        insertion_data.append(dumps(data_dict[k]))
     c_names = c_names[:-2] + ')'
     c_vals = c_vals[:-2] + ')'
     sql_string = 'INSERT INTO ' + db['table_name'] + c_names + ' VALUES ' + c_vals
