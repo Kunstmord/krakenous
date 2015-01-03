@@ -9,6 +9,8 @@ class DataSet(object):
     def __init__(self, backend_name: str, db_data: dict, metadata: dict=None):
         # global backend
         self.total_records = 0
+
+
         if backend_name not in ('sqlite', 'shelve'):
             raise KrakenousException('Unknown backend ' + backend_name)
         elif backend_name == 'shelve':
@@ -25,7 +27,7 @@ class DataSet(object):
         self.db_data = db_data
         self.backend_name = backend_name
 
-        if metadata is None:
+        if not metadata:
             self.metadata = {}
         else:
             self.metadata = metadata
@@ -42,13 +44,6 @@ class DataSet(object):
         if start_id < 0 or start_id > end_id:
             raise KrakenousException('start_id cannot be less than 0 or bigger than end_id')
         return end_id
-
-    def update_metadata(self, new_metadata: dict):
-        if self.metadata is {}:
-            self.metadata = new_metadata
-        else:
-            self.metadata.update(new_metadata)
-        return None
 
     def populate(self, tentacle, *args, writeback: int=0, **kwargs) -> int:
         """
@@ -224,7 +219,7 @@ class DataSet(object):
             raise KrakenousUnsupportedOperation('Renaming of features is not available for the SQLite backend')
         if self.total_records == 0:
             raise KrakenousException('The dataset is empty!')
-        if overwrite_existing is False and self.feature_exists_global(new_feature_name):
+        if not overwrite_existing and self.feature_exists_global(new_feature_name):
             raise KrakenousException('Feature with name "' + new_feature_name + '" already exists')
 
         if self.backend_name == 'shelve':
@@ -294,7 +289,7 @@ class DataSet(object):
 
     def single_feature(self, feature_name: str, start_id: int=1, end_id: int=-1):
         end_id = self.get_end_id(start_id, end_id)
-        if self.feature_exists_global(feature_name) is False:
+        if not self.feature_exists_global(feature_name):
             raise KrakenousException('Feature "' + feature_name + '" does not exist')
         db = self.backend.open_db(self.db_data)
         result = []
@@ -311,7 +306,7 @@ class DataSet(object):
         """
         end_id = self.get_end_id(start_id, end_id)
         for feature_name in feature_names:
-            if self.feature_exists_global(feature_name) is False:
+            if not self.feature_exists_global(feature_name):
                 raise KrakenousException('Feature "' + feature_name + '" does not exist')
         db = self.backend.open_db(self.db_data)
         result = []
@@ -387,7 +382,7 @@ class DataSet(object):
         a condition set by filter_function(feature_name, *args, **kwargs) (the filter_function should
         return True if the condition is satisfied, False otherwise)
         """
-        if self.feature_exists_global(feature_name) is False:
+        if not self.feature_exists_global(feature_name):
             raise KrakenousException('Feature "' + feature_name + '" does not exist')
         else:
             result = []
