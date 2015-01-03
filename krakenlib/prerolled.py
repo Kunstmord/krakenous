@@ -44,15 +44,17 @@ def add_labels(dataset: DataSet, id_field_name: str, labels, labels_name: str='l
                 dataset.insert_single(data_record['id'], labels_name, single_label[1], True)
 
 
-def dump_dataset(origin_dataset: DataSet, new_dataset: DataSet, column_names: tuple=(), copy_meta: bool=True):
-    #TODO - csv
+def dump_dataset(origin_dataset: DataSet, new_dataset: DataSet, column_names: tuple=(), copy_meta: bool=True,
+                 serializers=None):
+    #TODO - SQL -> shelve then serializers deserialize from strings to Python Objects
     """
-    allow copying only of specified column_names
+    if shelve -> SQL then serializers serialize from Python objects to strings
+    if SQL -> shelve then serializers deserialize from strings to Python Objects
     """
     if copy_meta is True:
         new_dataset.metadata = origin_dataset.metadata
     for data_record in origin_dataset.yield_data_records(column_names):
-        new_dataset.append_data_record(data_record)
+        new_dataset.append_data_record(data_record, serializers)
 
 
 def sync_datasets(dataset1: DataSet, dataset2: DataSet):
