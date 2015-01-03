@@ -22,7 +22,7 @@ You can call do something like:
 
 .. sourcecode::python
 
-    mydataset.extract_feature_simple(some_data_feature_extractor_function)
+    mydataset.extract_feature_simple(some_data_feature_extractor_function, ('filename'))
 
 and it will extract and store the feature for the whole dataset. It comes with helper functions to build base
 datasets from CSV files, files in folders (for example - images in folders), convert things into numpy arrays.
@@ -36,3 +36,12 @@ What will it be able to do?
 ---------------------------
 
 Support more backend types, export to CSV.
+
+Changelog
+=========
+
+v0.1
+----
+
+This is currently a development version - the package on PyPi doesn't get updated, and changes that break just about
+everything are pushed daily. Writing a specific changelog would be about as much use as documenting pure chaos. Sorry.
