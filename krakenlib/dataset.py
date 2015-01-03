@@ -134,7 +134,7 @@ class DataSet(object):
         self.backend.close_db(db)
 
     def extract_feature_full_for_range(self, start_id: int, end_id: int,
-                                       extractor, *args, column_names: tuple=(), metadata_names: tuple=(),
+                                       extractor, column_names, *args, metadata_names: tuple=(),
                                        verbose: int=0, writeback: int=0, overwrite_feature: bool=False,
                                        serializer=None, **kwargs):
         end_id = self.get_end_id(start_id, end_id)
@@ -174,32 +174,32 @@ class DataSet(object):
                 self.backend.commit_db(db)
         self.backend.close_db(db)
 
-    def extract_feature_simple(self, extractor, *args, **kwargs):
-        self.extract_feature_full_for_range(1, -1, extractor, *args, column_names=(),
-                                            metadata_names=(), verbose=0,
-                                            writeback=0, overwrite_feature=False, serializer=None, **kwargs)
-
-    def extract_feature_simple_custom_serializer(self, extractor, serializer, *args, **kwargs):
-        self.extract_feature_full_for_range(1, -1, extractor, *args, column_names=(),
-                                            metadata_names=(), verbose=0,
-                                            writeback=0, overwrite_feature=False, serializer=serializer, **kwargs)
-
-    def extract_dependent_feature_simple(self, extractor, *args, column_names=(), **kwargs):
-        self.extract_feature_full_for_range(1, -1, extractor, *args, column_names=column_names,
-                                            metadata_names=(), verbose=0,
-                                            writeback=0, overwrite_feature=False, serializer=None, **kwargs)
-
-    def extract_dependent_feature_simple_custom_serializer(self, extractor, serializer, *args, column_names=(), **kwargs):
-        self.extract_feature_full_for_range(1, -1, extractor, *args, column_names=column_names,
-                                            metadata_names=(), verbose=0,
-                                            writeback=0, overwrite_feature=False, serializer=serializer, **kwargs)
-
-    def extract_feature_full(self, extractor, *args, column_names: tuple=(), metadata_names: tuple=(), verbose: int=0,
+    def extract_feature_full(self, extractor, column_names, *args, metadata_names: tuple=(), verbose: int=0,
                              writeback: int=0, overwrite_feature: bool=False, serializer=None, **kwargs):
-        self.extract_feature_full_for_range(1, -1, extractor, *args, column_names=column_names,
+        self.extract_feature_full_for_range(1, -1, extractor, column_names, *args,
                                             metadata_names=metadata_names, verbose=verbose,
                                             writeback=writeback, overwrite_feature=overwrite_feature,
                                             serializer=serializer, **kwargs)
+
+    def extract_feature_simple(self, extractor, column_names, *args, **kwargs):
+        self.extract_feature_full_for_range(1, -1, extractor, column_names, *args,
+                                            metadata_names=(), verbose=0,
+                                            writeback=0, overwrite_feature=False, serializer=None, **kwargs)
+
+    def extract_feature_simple_custom_serializer(self, extractor, column_names, serializer, *args, **kwargs):
+        self.extract_feature_full_for_range(1, -1, extractor, column_names, *args,
+                                            metadata_names=(), verbose=0,
+                                            writeback=0, overwrite_feature=False, serializer=serializer, **kwargs)
+
+    def extract_dependent_feature_simple(self, extractor, column_names, *args, **kwargs):
+        self.extract_feature_full_for_range(1, -1, extractor, column_names, *args,
+                                            metadata_names=(), verbose=0,
+                                            writeback=0, overwrite_feature=False, serializer=None, **kwargs)
+
+    def extract_dependent_feature_simple_custom_serializer(self, extractor, column_names, serializer, *args, **kwargs):
+        self.extract_feature_full_for_range(1, -1, extractor, column_names, *args,
+                                            metadata_names=(), verbose=0,
+                                            writeback=0, overwrite_feature=False, serializer=serializer, **kwargs)
 
     def delete_feature(self, feature_name: str, writeback: int=0):
         """
