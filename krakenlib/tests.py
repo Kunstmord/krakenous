@@ -41,6 +41,10 @@ def string_feature(add_data, add_metadata):
     return 'test string feature'
 
 
+def id_doubler(add_data, add_metadata):
+    return add_data['id'] * 2
+
+
 class TestShelve(unittest.TestCase):
     def setUp(self):
         """
@@ -136,6 +140,12 @@ class TestShelve(unittest.TestCase):
         feature = self.dataset.single_feature('string_feature', start_id=4, end_id=7)
         assert len(feature) == 4  # and the start_id, end_id parameters work correctly
 
+    def test_column_selection(self):
+        self.dataset.extract_feature_simple(id_doubler, ('id', ))
+        feature = self.dataset.single_feature('id_doubler', start_id=1, end_id=3)
+        assert feature[0] == 2
+        assert feature[2] == 6
+
     def tearDown(self):
         for i in range(10):
             remove('testfolder/' + str(i))
@@ -207,6 +217,12 @@ class TestSQLite(unittest.TestCase):
         feature = self.dataset.single_feature('string_feature', start_id=4, end_id=7)
         assert len(feature) == 4  # and the start_id, end_id parameters work correctly
 
+    def test_column_selection(self):
+        self.dataset.extract_feature_simple(id_doubler, ('id', ))
+        feature = self.dataset.single_feature('id_doubler', start_id=1, end_id=3)
+        assert feature[0] == 2
+        assert feature[2] == 6
+
     def tearDown(self):
         for i in range(10):
             remove('testfolder/' + str(i))
@@ -268,13 +284,16 @@ class TestDump(unittest.TestCase):
             self.dataset.populate(folder_tentacle, 'testfolder', 'filename')
         self.dataset.extract_feature_simple(ext3, ())
         self.dataset.extract_feature_simple(string_feature, ())
+        self.dataset.extract_feature_simple(numpy_feature, ())
 
     def test_full_dump(self):
         new_dataset = DataSet(backend='sqlite', db_path='testsqlite1', table_name='test_table')
-        dump_dataset(self.dataset, new_dataset)
+        dump_dataset(self.dataset, new_dataset, serializers={'numpy_feature': numpy_array_serializer})
         assert new_dataset.total_records == self.dataset.total_records
-        assert 'string_feature' in new_dataset.feature_names()
-        assert 'ext3' in new_dataset.feature_names()
+        feature_names = new_dataset.feature_names()
+        assert 'string_feature' in feature_names
+        assert 'ext3' in feature_names
+        assert 'numpy_feature' in feature_names
 
     def tearDown(self):
         for i in range(10):
