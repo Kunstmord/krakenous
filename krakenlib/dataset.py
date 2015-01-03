@@ -155,11 +155,18 @@ class DataSet(object):
                 self.backend.create_new_column(db, extractor_name)
             if not serializer:
                 serializer = dumps
+
+        if 'id' in column_names and self.backend_name == 'shelve':
+            add_id = True
+        else:
+            add_id = False
         for record_id in range(start_id, end_id + 1):
             additional_data = {}
             additional_metadata = {}
             for column_name in column_names:
                 additional_data[column_name] = self.backend.read_single_data(db, record_id, column_name)
+            if add_id:
+                additional_data['id'] = record_id
             for metadata_name in metadata_names:
                 additional_metadata[metadata_name] = self.metadata[metadata_name]
             if self.backend_name == 'shelve':
