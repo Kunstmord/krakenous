@@ -6,31 +6,41 @@ from json import dumps
 
 
 class DataSet(object):
-    def __init__(self, backend_name: str, db_data: dict, metadata: dict=None):
-        # global backend
+    def __init__(self, **kwargs):
         self.total_records = 0
 
-
-        if backend_name not in ('sqlite', 'shelve'):
-            raise KrakenousException('Unknown backend ' + backend_name)
-        elif backend_name == 'shelve':
-            self.backend = __import__('krakenlib.backend_shelve', fromlist=['backend_shelve'])
-            if os.path.isfile(db_data['db_path'] + '.db'):  # shelve makes files end in .db
-                self.total_records = self.backend.data_records_amount(db_data)
-        elif backend_name == 'sqlite':
-            self.backend = __import__('krakenlib.backend_sqlite', fromlist=['backend_sqlite'])
-            if os.path.isfile(db_data['db_path']):
-                self.total_records = self.backend.data_records_amount(db_data)
-            else:
-                self.backend.create_db(db_data)
-
-        self.db_data = db_data
-        self.backend_name = backend_name
-
-        if not metadata:
-            self.metadata = {}
+        if 'backend' not in kwargs:
+            raise KrakenousException('No backend specified')
         else:
-            self.metadata = metadata
+            self.backend_name = kwargs['backend']
+
+        if 'metadata' in kwargs:
+            self.metadata = kwargs['metadata']
+        else:
+            self.metadata = {}
+
+        if self.backend_name == 'shelve':
+            if 'db_path' not in kwargs:
+                raise KrakenousException('No path to shelve file specified')
+            else:
+                self.db_data = {'db_path': kwargs['db_path']}
+                self.backend = __import__('krakenlib.backend_shelve', fromlist=['backend_shelve'])
+                if os.path.isfile(self.db_data['db_path'] + '.db'):
+                    self.total_records = self.backend.data_records_amount(self.db_data)
+        elif self.backend_name == 'sqlite':
+            if 'db_path' not in kwargs:
+                raise KrakenousException('No path to SQLite file specified')
+            elif 'table_name' not in kwargs:
+                raise KrakenousException('No SQLite table name specified')
+            else:
+                self.db_data = {'db_path': kwargs['db_path'], 'table_name': kwargs['table_name']}
+                self.backend = __import__('krakenlib.backend_sqlite', fromlist=['backend_sqlite'])
+                if os.path.isfile(self.db_data['db_path']):
+                    self.total_records = self.backend.data_records_amount(self.db_data)
+                else:
+                    self.backend.create_db(self.db_data)
+        else:
+            raise KrakenousException('Unknown backend ' + self.backend_name)
 
     def get_end_id(self, start_id, end_id):
         if self.total_records == 0:

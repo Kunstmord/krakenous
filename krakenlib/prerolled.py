@@ -44,19 +44,15 @@ def add_labels(dataset: DataSet, id_field_name: str, labels, labels_name: str='l
                 dataset.insert_single(data_record['id'], labels_name, single_label[1], True)
 
 
-def dump_dataset(dataset: DataSet, db_data: dict, dump_backend: str, column_names: tuple=(), copy_meta: bool=True):
+def dump_dataset(origin_dataset: DataSet, new_dataset: DataSet, column_names: tuple=(), copy_meta: bool=True):
     #TODO - csv
     """
     allow copying only of specified column_names
     """
-    if dump_backend not in ('sqlite', 'pickle'):
-        raise KrakenousException('Unknown backend ' + dump_backend)
-    else:
-        new_dataset = DataSet(dump_backend, db_data)
-        if copy_meta is True:
-            new_dataset.metadata = dataset.metadata
-        for data_record in dataset.yield_data_records(column_names):
-            new_dataset.append_data_record(data_record)
+    if copy_meta is True:
+        new_dataset.metadata = origin_dataset.metadata
+    for data_record in origin_dataset.yield_data_records(column_names):
+        new_dataset.append_data_record(data_record)
 
 
 def sync_datasets(dataset1: DataSet, dataset2: DataSet):
