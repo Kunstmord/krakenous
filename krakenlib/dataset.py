@@ -56,6 +56,7 @@ class DataSet(object):
         return end_id
 
     def populate(self, tentacle, *args, writeback: int=0, **kwargs) -> int:
+        #TODO custom serializer support
         """
         tentacle is a generator, returns a dictionary of stuff
         """
@@ -82,7 +83,7 @@ class DataSet(object):
         self.backend.close_db(db)
         return records_added
 
-    def append_data_record(self, data_record: dict):
+    def append_data_record(self, data_record: dict, serializers=None):
         """
         do not write id field! (if exists in dict) (doesn't concern shelve)
         """
@@ -101,7 +102,7 @@ class DataSet(object):
             for data_key in data_record:
                 if data_key not in all_names:
                     self.backend.create_new_column(db, data_key)
-            self.backend.append_data_record(db, 1, data_record)
+            self.backend.append_data_record(db, 1, data_record, serializers)
         self.total_records += 1
         self.backend.close_db(db)
 
