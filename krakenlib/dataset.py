@@ -343,12 +343,16 @@ class DataSet(object):
         result_dict = {}
         if column_names == ():
             result_dict = self.backend.read_all_data(db, record_id)
+            result_dict['id'] = record_id
         else:
             for column_name in column_names:
-                result_dict[column_name] = self.backend.read_single_data(db, record_id, column_name)
+                if column_name != 'id':
+                    result_dict[column_name] = self.backend.read_single_data(db, record_id, column_name)
+                else:
+                    result_dict['id'] = record_id
         return result_dict
 
-    def single_data_record(self, record_id, column_names: tuple=()) -> dict:
+    def single_data_record(self, record_id, column_names: tuple=(), deserializers=None) -> dict:
         """
         returns a dict
         """
@@ -358,37 +362,43 @@ class DataSet(object):
             if self.backend_name == 'shelve':
                 result_dict = self.backend.read_all_data(db, record_id)
             elif self.backend_name == 'sqlite':
-                tmp_res = self.backend.read_all_data(db, record_id)
+                tmp_res = self.backend.read_all_data(db, record_id, deserializers)
                 all_column_names = self.backend.all_data_names(db)
                 for column_name_enum in enumerate(all_column_names):
                     result_dict[column_name_enum[1]] = tmp_res[column_name_enum[0]]
+            result_dict['id'] = record_id
         else:
-            for column_name in column_names:
-                result_dict[column_name] = self.backend.read_single_data(db, record_id, column_name)
+            if 'id' in column_names:
+                result_dict['id'] = record_id
+            if self.backend_name == 'shelve':
+                for column_name in column_names:
+                    result_dict[column_name] = self.backend.read_single_data(db, record_id, column_name)
+            elif self.backend_name == 'sqlite':
+                for column_name in column_names:
+                    if column_name != 'id':
+                        if deserializers and column_name in deserializers:
+                            result_dict[column_name] = self.backend.read_single_data(db, record_id, column_name,
+                                                                                     deserializers[column_name])
+                        else:
+                            result_dict[column_name] = self.backend.read_single_data(db, record_id, column_name)
         self.backend.close_db(db)
         return result_dict
 
-    def yield_data_records(self, column_names: tuple=(), start_id: int=1, end_id: int=-1) -> dict:
+    def yield_data_records(self, column_names: tuple=(), start_id: int=1, end_id: int=-1, filters=None) -> dict:
         """
         return only what is specified in column_names; if () - return everything
         """
         db = self.backend.open_db(self.db_data)
         end_id = self.get_end_id(start_id, end_id)
         for record_id in range(start_id, end_id + 1):
-            yield self._single_data_record_open(record_id, db, column_names)
+            if filters:
+                data_record = self._single_data_record_open(record_id, db, column_names)
+                flag = True
+                for column_name in filters:
+                    if data_record[column_name] != filters[column_name]:
+                        flag = False
+                if flag:
+                    yield data_record
+            else:
+                yield self._single_data_record_open(record_id, db, column_names)
         self.backend.close_db(db)
-
-    def id_filter_by_feature(self, feature_name: str, filter_function, *args, **kwargs) -> list:  # NEEDS TESTING
-        """
-        Returns a list of ids of data records for which the feature specified by feature_name satisfies
-        a condition set by filter_function(feature_name, *args, **kwargs) (the filter_function should
-        return True if the condition is satisfied, False otherwise)
-        """
-        if not self.feature_exists_global(feature_name):
-            raise KrakenousException('Feature "' + feature_name + '" does not exist')
-        else:
-            result = []
-            for data_record in self.yield_data_records(('id', feature_name,)):
-                if filter_function(data_record[feature_name], *args, **kwargs):
-                    result.append(data_record['id'])
-            return result
