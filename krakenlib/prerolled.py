@@ -11,7 +11,7 @@ from os import walk
 from krakenlib.dataset import DataSet
 from krakenlib.misc import element_length
 from krakenlib.errors import KrakenousException
-from json import dumps
+from json import dumps, loads
 
 
 def folder_tentacle(path_to_folder, column_name: str, exclude_files_list: tuple=(), filename_transform=None,
@@ -52,6 +52,7 @@ def dump_dataset(origin_dataset: DataSet, new_dataset: DataSet, column_names: tu
     if SQL -> shelve then serializers deserialize from strings to Python Objects
     """
     for data_record in origin_dataset.yield_data_records(column_names):
+        del data_record['id']
         new_dataset.append_data_record(data_record, serializers)
 
 
@@ -151,6 +152,10 @@ def convert_multiple_features_numpy(dataset: DataSet, feature_names: tuple, star
         return result
     else:
         raise KrakenousException('No features that can be fit into a numpy array found in the passed tuple')
+
+
+def numpy_array_deserializer(string: list) -> np.ndarray:
+    return np.asarray(loads(string))
 
 
 def numpy_array_serializer(array: np.ndarray) -> str:
