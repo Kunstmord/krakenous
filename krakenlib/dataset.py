@@ -14,11 +14,6 @@ class DataSet(object):
         else:
             self.backend_name = kwargs['backend']
 
-        if 'metadata' in kwargs:
-            self.metadata = kwargs['metadata']
-        else:
-            self.metadata = {}
-
         if self.backend_name == 'shelve':
             if 'db_path' not in kwargs:
                 raise KrakenousException('No path to shelve file specified')
@@ -135,7 +130,7 @@ class DataSet(object):
         self.backend.close_db(db)
 
     def extract_feature_full_for_range(self, start_id: int, end_id: int,
-                                       extractor, column_names, *args, metadata_names: tuple=(),
+                                       extractor, column_names, *args,
                                        verbose: int=0, writeback: int=0, overwrite_feature: bool=False,
                                        serializer=None, **kwargs):
         end_id = self.get_end_id(start_id, end_id)
@@ -158,20 +153,17 @@ class DataSet(object):
 
         for record_id in range(start_id, end_id + 1):
             additional_data = {}
-            additional_metadata = {}
             for column_name in column_names:
                 if column_name != 'id':
                     additional_data[column_name] = self.backend.read_single_data(db, record_id, column_name)
                 else:
                     additional_data[column_name] = record_id
-            for metadata_name in metadata_names:
-                additional_metadata[metadata_name] = self.metadata[metadata_name]
             if self.backend_name == 'shelve':
-                self.backend.write_data(db, record_id, extractor_name, extractor(additional_data, additional_metadata,
-                                                                            *args, **kwargs))
+                self.backend.write_data(db, record_id, extractor_name, extractor(additional_data,
+                                                                                 *args, **kwargs))
             elif self.backend_name == 'sqlite':
-                self.backend.write_data(db, record_id, extractor_name, extractor(additional_data, additional_metadata,
-                                                                            *args, **kwargs), serializer)
+                self.backend.write_data(db, record_id, extractor_name, extractor(additional_data,
+                                                                                 *args, **kwargs), serializer)
 
             if verbose != 0 and record_id % verbose == 0:
                 print(record_id)
@@ -179,31 +171,26 @@ class DataSet(object):
                 self.backend.commit_db(db)
         self.backend.close_db(db)
 
-    def extract_feature_full(self, extractor, column_names, *args, metadata_names: tuple=(), verbose: int=0,
+    def extract_feature_full(self, extractor, column_names, *args, verbose: int=0,
                              writeback: int=0, overwrite_feature: bool=False, serializer=None, **kwargs):
-        self.extract_feature_full_for_range(1, -1, extractor, column_names, *args,
-                                            metadata_names=metadata_names, verbose=verbose,
+        self.extract_feature_full_for_range(1, -1, extractor, column_names, *args, verbose=verbose,
                                             writeback=writeback, overwrite_feature=overwrite_feature,
                                             serializer=serializer, **kwargs)
 
     def extract_feature_simple(self, extractor, column_names, *args, **kwargs):
-        self.extract_feature_full_for_range(1, -1, extractor, column_names, *args,
-                                            metadata_names=(), verbose=0,
+        self.extract_feature_full_for_range(1, -1, extractor, column_names, *args, verbose=0,
                                             writeback=0, overwrite_feature=False, serializer=None, **kwargs)
 
     def extract_feature_simple_custom_serializer(self, extractor, column_names, serializer, *args, **kwargs):
-        self.extract_feature_full_for_range(1, -1, extractor, column_names, *args,
-                                            metadata_names=(), verbose=0,
+        self.extract_feature_full_for_range(1, -1, extractor, column_names, *args, verbose=0,
                                             writeback=0, overwrite_feature=False, serializer=serializer, **kwargs)
 
     def extract_dependent_feature_simple(self, extractor, column_names, *args, **kwargs):
-        self.extract_feature_full_for_range(1, -1, extractor, column_names, *args,
-                                            metadata_names=(), verbose=0,
+        self.extract_feature_full_for_range(1, -1, extractor, column_names, *args, verbose=0,
                                             writeback=0, overwrite_feature=False, serializer=None, **kwargs)
 
     def extract_dependent_feature_simple_custom_serializer(self, extractor, column_names, serializer, *args, **kwargs):
-        self.extract_feature_full_for_range(1, -1, extractor, column_names, *args,
-                                            metadata_names=(), verbose=0,
+        self.extract_feature_full_for_range(1, -1, extractor, column_names, *args, verbose=0,
                                             writeback=0, overwrite_feature=False, serializer=serializer, **kwargs)
 
     def delete_feature(self, feature_name: str, writeback: int=0):

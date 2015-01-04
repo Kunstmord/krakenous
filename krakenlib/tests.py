@@ -9,39 +9,39 @@ import numpy as np
 import krakenlib.errors
 
 
-def fake_extractor(add_data, add_metadata, val):
+def fake_extractor(add_data, val):
     return val
 
 
-def a_very_fake_extractor(add_data, add_metadata):
+def a_very_fake_extractor(add_data):
     return 30239
 
 
-def ext3(add_data, add_metadata):
+def ext3(add_data):
     return 23930
 
 
-def list_feature_test(add_data, add_metadata):
+def list_feature_test(add_data):
     return [1, 3, 4]
 
 
-def argfeature_test(add_data, add_metadata, i, j=2):
+def argfeature_test(add_data, i, j=2):
     return i + j
 
 
-def numpy_feature(add_data, add_metadata):
+def numpy_feature(add_data):
     return np.zeros(3)
 
 
-def numpy_feature2(add_data, add_metadata):
+def numpy_feature2(add_data):
     return np.ones(2)
 
 
-def string_feature(add_data, add_metadata):
+def string_feature(add_data):
     return 'test string feature'
 
 
-def id_doubler(add_data, add_metadata):
+def id_doubler(add_data):
     return add_data['id'] * 2
 
 
@@ -126,7 +126,7 @@ class TestShelve(unittest.TestCase):
 
     def test_feature_args(self):
         self.dataset.extract_feature_full(argfeature_test, (), 5,
-                                          metadata_names=(), verbose=0, writeback=0,
+                                          verbose=0, writeback=0,
                                           overwrite_feature=True, j=10)
         assert self.dataset.single_data_record(5, ('argfeature_test',))['argfeature_test'] == 15
 
@@ -203,7 +203,7 @@ class TestSQLite(unittest.TestCase):
 
     def test_feature_args(self):
         self.dataset.extract_feature_full(argfeature_test, (), 5,
-                                          metadata_names=(), verbose=0, writeback=0,
+                                          verbose=0, writeback=0,
                                           overwrite_feature=True, serializer=None, j=10)
         assert self.dataset.single_data_record(5, ('argfeature_test',))['argfeature_test'] == 15
 
