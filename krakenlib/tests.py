@@ -2,7 +2,7 @@ __author__ = 'Viktor Evstratov, George Oblapenko'
 import unittest
 from krakenlib.dataset import DataSet
 from krakenlib.prerolled import folder_tentacle, convert_multiple_features_numpy, convert_single_feature_numpy,\
-    numpy_array_serializer, dump_dataset
+    numpy_array_serializer, dump_dataset, numpy_array_deserializer
 import os.path
 from os import makedirs, rmdir, remove
 import numpy as np
@@ -35,6 +35,10 @@ def numpy_feature(add_data):
 
 def numpy_feature2(add_data):
     return np.ones(2)
+
+
+def numpy_feature_md(add_data):
+    return np.ones([3, 4, 9])
 
 
 def string_feature(add_data):
@@ -146,6 +150,12 @@ class TestShelve(unittest.TestCase):
         assert feature[0] == 2
         assert feature[2] == 6
 
+    def test_filter(self):
+        tests = list(self.dataset.yield_data_records(('id',), filters={'id': 4}))
+        assert len(tests) == 1
+        tests = list(self.dataset.yield_data_records(('id',), filters={'id': 114}))
+        assert len(tests) == 0
+
     def tearDown(self):
         for i in range(10):
             remove('testfolder/' + str(i))
@@ -222,6 +232,18 @@ class TestSQLite(unittest.TestCase):
         feature = self.dataset.single_feature('id_doubler', start_id=1, end_id=3)
         assert feature[0] == 2
         assert feature[2] == 6
+
+    def test_filter(self):
+        tests = list(self.dataset.yield_data_records(('id',), filters={'id': 4}))
+        assert len(tests) == 1
+        tests = list(self.dataset.yield_data_records(('id',), filters={'id': 114}))
+        assert len(tests) == 0
+
+    def test_deserialize(self):
+        self.dataset.extract_feature_simple_custom_serializer(numpy_feature_md, (), numpy_array_serializer)
+        np_feat = self.dataset.single_data_record(5, ('numpy_feature_md', ),
+                                                  {'numpy_feature_md': numpy_array_deserializer})
+        assert np_feat['numpy_feature_md'].shape == (3, 4, 9)
 
     def tearDown(self):
         for i in range(10):
