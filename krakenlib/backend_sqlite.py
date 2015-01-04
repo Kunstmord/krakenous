@@ -65,31 +65,47 @@ def append_data_record(db: dict, record_id: int, data_dict: dict, serializers=No
     db['db'].execute(sql_string, tuple(insertion_data))
 
 
-def read_single_data(db: dict, record_id: int, data_name: str):
+def read_single_data(db: dict, record_id: int, data_name: str, deserializer=None):
     """Return the contents of a data column specified by data_name for a given record_id
     """
     sql_string = 'SELECT ' + data_name + ' FROM ' + db['table_name'] + ' WHERE id=' + str(record_id)
     db['db'].execute(sql_string)
-    return loads(db['db'].fetchone()[0])
+    if deserializer:
+        return deserializer(db['db'].fetchone()[0])
+    else:
+        return loads(db['db'].fetchone()[0])
 
 
-def read_multiple_data(db: dict, record_id: int, data_names: tuple):
+def read_multiple_data(db: dict, record_id: int, data_names: tuple, deserializers=None):
     """Return the contents of data columns specified by contents data_names for a given record_id
     """
     result = {}
     for data_name in data_names:
-        result[data_name] = read_single_data(db, record_id, data_name)
+        if data_name in deserializers:
+            result[data_name] = read_single_data(db, record_id, data_name, deserializers[data_name])
+        else:
+            result[data_name] = read_single_data(db, record_id, data_name)
     return result
 
 
-def read_all_data(db: dict, record_id: int):
+def read_all_data(db: dict, record_id: int, deserializers=None):
     """
     Return the contents of all data columns for a given record_id
     """
     sql_string = 'SELECT * FROM ' + db['table_name'] + ' WHERE id=' + str(record_id)
     db['db'].execute(sql_string)
     res = db['db'].fetchone()
-    return list(map(lambda x: loads(x), res[1:]))
+
+    if deserializers:
+        result = []
+        for x_enum in enumerate(res[1:]):
+            if x_enum[0] in deserializers:
+                result.append(deserializers[x_enum[0]](x_enum[1]))
+            else:
+                result.append(loads(x_enum[1]))
+    else:
+        result = list(map(lambda x: loads(x), res[1:]))
+    return result
 
 
 def data_exists(db: dict, record_id: int, data_name: str) -> bool:
