@@ -43,8 +43,6 @@ def create_new_column(db: dict, data_name: str):
 
 def write_data(db: dict, record_id: int, data_name: str, data, serializer):
     sql_string = 'UPDATE ' + db['table_name'] + ' SET ' + data_name + '=? WHERE id=?'
-    # sql_string = 'UPDATE ' + db['table_name'] + ' SET ' + data_name + '"=' + serializer(data)\
-    #              + '" WHERE id=' + str(record_id)
     db['db'].execute(sql_string, (serializer(data), record_id))
 
 
@@ -123,9 +121,7 @@ def all_data_names(db: dict) -> list:
     """Return data column names (doesn't include id)
     """
     sql_string = 'SELECT * FROM ' + db['table_name']
-    # sql_string = 'CREATE TABLE ' + db_data['table_name'] + ' (id integer primary key)'
     db['db'].execute(sql_string)
-    # db['db'].execute('SELECT * FROM :tablename', {'tablename': db['table_name']})
     return list(map(lambda x: x[0], db['db'].description))[1:]
 
 
