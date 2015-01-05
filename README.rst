@@ -38,6 +38,9 @@ Support more backend types, export to CSV.
 Changelog
 =========
 
+v0.3 (Squishable Squid Eyeball)
+-------------------------------
+
 v0.2 (Charismatic Octopii)
 --------------------------
 
@@ -47,6 +50,6 @@ probably more-or-less stable function signatures and some working pre-rolled fun
 v0.1 (Tentacleous Chaos)
 ------------------------
 
-This is currently a development version - the package on PyPi doesn't get updated, and changes that break just about
-everything are pushed daily. Writing a specific changelog would be about as much use as documenting pure primordial
-chaos. Sorry.
+This was a development version - with everything-breaking changes pushed daily (hourly, even).
+Writing a specific changelog of things that have changed between v0.1 and v0.2 would be about as much use as
+documenting pure primordial chaos. Sorry.
