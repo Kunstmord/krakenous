@@ -18,12 +18,12 @@ def folder_tentacle(path_to_folder, column_name: str, exclude_files_list: tuple=
                     keep_original_filename: bool=True, original_filename_column_name: str='filename', **kwargs):
     for (dirpath, dirnames, filenames) in walk(path_to_folder):
         for f_name in filenames:
-            if filename_transform is None:
+            if not filename_transform:
                 if f_name not in exclude_files_list:
                     yield {column_name: f_name}
             else:
                 if f_name not in exclude_files_list:
-                    if keep_original_filename is True:
+                    if keep_original_filename:
                         yield {original_filename_column_name: f_name, column_name: filename_transform(f_name, **kwargs)}
                     else:
                         yield {column_name: filename_transform(f_name, **kwargs)}
@@ -34,7 +34,7 @@ def add_labels(dataset: DataSet, id_field_name: str, labels, labels_name: str='l
     labels - iterable of iterables - ((some_id, label), ...)
     return difference between added and not_added?
     """
-    if overwrite_existing is False and dataset.feature_exists_global(labels_name) is True:
+    if not overwrite_existing and dataset.feature_exists_global(labels_name):
         raise KrakenousException('A field with name ' + labels_name + ' already exists')
     if len(labels) != dataset.total_records:
         raise KrakenousException('Number of labels is different from the number of records in the dataset')
