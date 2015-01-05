@@ -56,7 +56,7 @@ def dump_dataset(origin_dataset: DataSet, new_dataset: DataSet, column_names: tu
         new_dataset.append_data_record(data_record, serializers)
 
 
-def sync_datasets(dataset1: DataSet, dataset2: DataSet):
+def sync_datasets(dataset1: DataSet, dataset2: DataSet, serializers: dict=None, deserializers: dict=None):
     #TODO what if key doesn't exist in case of the shelve backend?
 
     if dataset1.total_records != dataset2.total_records:
@@ -71,12 +71,22 @@ def sync_datasets(dataset1: DataSet, dataset2: DataSet):
     for data_name in data_names2:
         if data_name not in data_names1:
             from_second_to_first.append(data_name)
-    for record in dataset1.yield_data_records(from_first_to_second):
+    for record in dataset1.yield_data_records(from_first_to_second, deserializers=deserializers):
         for data_name in from_first_to_second:
-            dataset2.insert_single(record['id'], data_name, record[data_name])
-    for record in dataset2.yield_data_records(from_second_to_first):
+            if data_name != 'id':
+                if serializers and data_name in serializers:
+                    dataset2.insert_single(record['id'], data_name, record[data_name],
+                                           serializer=serializers[data_name])
+                else:
+                    dataset2.insert_single(record['id'], data_name, record[data_name])
+    for record in dataset2.yield_data_records(from_second_to_first, deserializers=deserializers):
         for data_name in from_second_to_first:
-            dataset1.insert_single(record['id'], data_name, record[data_name])
+            if data_name != 'id':
+                if serializers and data_name in serializers:
+                    dataset1.insert_single(record['id'], data_name, record[data_name],
+                                           serializer=serializers[data_name])
+                else:
+                    dataset1.insert_single(record['id'], data_name, record[data_name])
 
 
 def convert_single_feature_numpy(dataset: DataSet, feature_name: str, start_id: int=1, end_id: int=-1):
@@ -101,8 +111,6 @@ def convert_single_feature_numpy(dataset: DataSet, feature_name: str, start_id: 
     if el_length[1] == 'number' or el_length[1] == 'tuple' or el_length[1] == 'list':
         for data_record in enumerate(dataset.yield_data_records((feature_name,), start_id, end_id)):
             result[data_record[0], :] = data_record[1][feature_name]
-        # for data_record in enumerate(dataset.yield_data_records((feature_name,), start_id, end_id)):
-        #     result[data_record[0], :] = data_record[1][feature_name]
     elif el_length[1] == 'ndarray':
         for data_record in enumerate(dataset.yield_data_records((feature_name,), start_id, end_id)):
             result[data_record[0], :] = data_record[1][feature_name].flatten()
