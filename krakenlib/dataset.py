@@ -76,7 +76,6 @@ class DataSet(object):
                 self.backend.commit_db(db)
         self.total_records = records_added
         self.backend.close_db(db)
-        return records_added
 
     def append_data_record(self, data_record: dict, serializers=None):
         """
@@ -117,10 +116,12 @@ class DataSet(object):
         """
         if not overwrite_existing and self.feature_exists(record_id, feature_name):
             raise KrakenousException('Feature with name "' + feature_name + '" already exists')
+        db = self.backend.open_db(self.db_data)
         if self.backend_name == 'sqlite':
             if not serializer:
                 serializer = dumps
-        db = self.backend.open_db(self.db_data)
+            if feature_name not in self.feature_names():
+                self.backend.create_new_column(db, feature_name)
         if self.backend_name == 'sqlite' and feature_name not in self.feature_names():
             self.backend.create_new_column(db, feature_name)
         if self.backend_name == 'shelve':
@@ -275,9 +276,13 @@ class DataSet(object):
 
     def feature_exists(self, record_id: int, feature_name: str) -> bool:
         db = self.backend.open_db(self.db_data)
-        feature_exists = self.backend.data_exists(db, record_id, feature_name)
-        self.backend.close_db(db)
-        return feature_exists
+        if self.backend_name == 'sqlite' and feature_name not in self.feature_names():
+            self.backend.close_db(db)
+            return False
+        else:
+            feature_exists = self.backend.data_exists(db, record_id, feature_name)
+            self.backend.close_db(db)
+            return feature_exists
 
     def _feature_exists_open(self, record_id: int, feature_name: str, db) -> bool:
         feature_exists = self.backend.data_exists(db, record_id, feature_name)
@@ -289,18 +294,22 @@ class DataSet(object):
         else:
             return False
 
-    def single_feature(self, feature_name: str, start_id: int=1, end_id: int=-1):
+    def single_feature(self, feature_name: str, start_id: int=1, end_id: int=-1, deserializer=None):
         end_id = self.get_end_id(start_id, end_id)
         if not self.feature_exists_global(feature_name):
             raise KrakenousException('Feature "' + feature_name + '" does not exist')
         db = self.backend.open_db(self.db_data)
         result = []
-        for record_id in range(start_id, end_id + 1):
-            result.append(self.backend.read_single_data(db, record_id, feature_name))
+        if self.backend_name == 'sqlite':
+            for record_id in range(start_id, end_id + 1):
+                result.append(self.backend.read_single_data(db, record_id, feature_name, deserializer))
+        else:
+            for record_id in range(start_id, end_id + 1):
+                result.append(self.backend.read_single_data(db, record_id, feature_name))
         self.backend.close_db(db)
         return result
 
-    def multiple_features(self, feature_names: tuple, start_id: int=1, end_id: int=-1) -> list:
+    def multiple_features(self, feature_names: tuple, start_id: int=1, end_id: int=-1, deserializers: dict=None) -> list:
         """
         returns list of dictionaries
         add start_id / end_id
@@ -312,8 +321,12 @@ class DataSet(object):
                 raise KrakenousException('Feature "' + feature_name + '" does not exist')
         db = self.backend.open_db(self.db_data)
         result = []
-        for record_id in range(start_id, end_id + 1):
-            result.append(self.backend.read_multiple_data(db, record_id, feature_names))
+        if self.backend_name == 'sqlite':
+            for record_id in range(start_id, end_id + 1):
+                result.append(self.backend.read_multiple_data(db, record_id, feature_names, deserializers))
+        else:
+            for record_id in range(start_id, end_id + 1):
+                result.append(self.backend.read_multiple_data(db, record_id, feature_names))
         self.backend.close_db(db)
         return result
 
@@ -336,7 +349,7 @@ class DataSet(object):
         self.backend.close_db(db)
         return return_list
 
-    def _single_data_record_open(self, record_id, db, column_names: tuple=()) -> dict:
+    def _single_data_record_open(self, record_id, db, column_names: tuple=(), deserializers: dict=None) -> dict:
         """
         returns a dict
         """
@@ -347,7 +360,11 @@ class DataSet(object):
         else:
             for column_name in column_names:
                 if column_name != 'id':
-                    result_dict[column_name] = self.backend.read_single_data(db, record_id, column_name)
+                    if self.backend_name == 'sqlite' and deserializers and column_name in deserializers:
+                        result_dict[column_name] = self.backend.read_single_data(db, record_id, column_name,
+                                                                                 deserializers[column_name])
+                    else:
+                        result_dict[column_name] = self.backend.read_single_data(db, record_id, column_name)
                 else:
                     result_dict['id'] = record_id
         return result_dict
@@ -384,7 +401,8 @@ class DataSet(object):
         self.backend.close_db(db)
         return result_dict
 
-    def yield_data_records(self, column_names: tuple=(), start_id: int=1, end_id: int=-1, filters=None) -> dict:
+    def yield_data_records(self, column_names: tuple=(), start_id: int=1, end_id: int=-1, deserializers: dict=None,
+                           filters=None) -> dict:
         """
         return only what is specified in column_names; if () - return everything
         """
@@ -392,7 +410,7 @@ class DataSet(object):
         end_id = self.get_end_id(start_id, end_id)
         for record_id in range(start_id, end_id + 1):
             if filters:
-                data_record = self._single_data_record_open(record_id, db, column_names)
+                data_record = self._single_data_record_open(record_id, db, column_names, deserializers)
                 flag = True
                 for column_name in filters:
                     if data_record[column_name] != filters[column_name]:
@@ -400,5 +418,5 @@ class DataSet(object):
                 if flag:
                     yield data_record
             else:
-                yield self._single_data_record_open(record_id, db, column_names)
+                yield self._single_data_record_open(record_id, db, column_names, deserializers)
         self.backend.close_db(db)
