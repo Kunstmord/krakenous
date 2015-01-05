@@ -32,7 +32,6 @@ def folder_tentacle(path_to_folder, column_name: str, exclude_files_list: tuple=
 def add_labels(dataset: DataSet, id_field_name: str, labels, labels_name: str='label', overwrite_existing: bool=False):
     """
     labels - iterable of iterables - ((some_id, label), ...)
-    return difference between added and not_added?
     """
     if not overwrite_existing and dataset.feature_exists_global(labels_name):
         raise KrakenousException('A field with name ' + labels_name + ' already exists')
