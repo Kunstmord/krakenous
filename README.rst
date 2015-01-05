@@ -9,7 +9,7 @@ Why?
 ----
 
 Because time spent on organizing data loading/storage can be spent doing more interesting things (like
-writing complex functions to classificate octopii based on photos of their tentacles). You write the
+writing complex functions to classificate squids based on hi-res photos of their tentacle-thingies). You write the
 data/feature-extracting functions, Krakenous takes care of writing them to disk.
 
 Why "Krakenous"? Krakens are awesome, and "krakenous" would make one hell of an adjective.
@@ -20,9 +20,7 @@ What can it do?
 Store data. Extract features and store them (you'll have to write the extractor function yourself).
 You can call do something like:
 
-.. sourcecode::python
-
-    mydataset.extract_feature_simple(some_data_feature_extractor_function, ('filename'))
+``mydataset.extract_feature_simple(some_data_feature_extractor_function, ('filename', ))``
 
 and it will extract and store the feature for the whole dataset. It comes with helper functions to build base
 datasets from CSV files, files in folders (for example - images in folders), convert things into numpy arrays.
@@ -40,8 +38,15 @@ Support more backend types, export to CSV.
 Changelog
 =========
 
-v0.1
-----
+v0.2 (Charismatic Octopii)
+--------------------------
+
+05.01.2015 The first more-or-less stable version. No docstrings yet. Serialization / deserialization support,
+probably more-or-less stable function signatures and some working pre-rolled functions are in place.
+
+v0.1 (Tentacleous Chaos)
+------------------------
 
 This is currently a development version - the package on PyPi doesn't get updated, and changes that break just about
-everything are pushed daily. Writing a specific changelog would be about as much use as documenting pure chaos. Sorry.
+everything are pushed daily. Writing a specific changelog would be about as much use as documenting pure primordial
+chaos. Sorry.
