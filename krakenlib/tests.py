@@ -2,7 +2,7 @@ __author__ = 'Viktor Evstratov, George Oblapenko'
 import unittest
 from krakenlib.dataset import DataSet
 from krakenlib.prerolled import folder_tentacle, convert_multiple_features_numpy, convert_single_feature_numpy,\
-    numpy_array_serializer, dump_dataset, numpy_array_deserializer
+    numpy_array_serializer, dump_dataset, numpy_array_deserializer, sync_datasets
 import os.path
 from os import makedirs, rmdir, remove
 import numpy as np
@@ -49,6 +49,26 @@ def id_doubler(add_data):
     return add_data['id'] * 2
 
 
+def id_heavyside(add_data):
+    if add_data['id'] > 5:
+        return 1
+    else:
+        return 0
+
+
+def folder_creator():
+    if not os.path.isdir('testfolder'):
+        makedirs('testfolder')
+        for i in range(10):
+            open('testfolder/' + str(i), 'a').close()
+
+
+def folder_destroyer():
+    for i in range(10):
+        remove('testfolder/' + str(i))
+    rmdir('testfolder')
+
+
 class BaseTest(unittest.TestCase):
     def setUp(self):
         """
@@ -58,10 +78,7 @@ class BaseTest(unittest.TestCase):
         """
         self.dataset = DataSet(backend='shelve', db_path='testshelve')  # we will use the folder tentacle for testing
         if self.dataset.total_records == 0:
-            if not os.path.isdir('testfolder'):
-                makedirs('testfolder')
-                for i in range(10):
-                    open('testfolder/' + str(i), 'a').close()
+            folder_creator()
             self.dataset.populate(folder_tentacle, 'testfolder', 'filename')
 
     def test_population(self):
@@ -117,11 +134,12 @@ class BaseTest(unittest.TestCase):
         assert len(tests) == 1
         tests = list(self.dataset.yield_data_records(('id',), filters={'id': 114}))
         assert len(tests) == 0
+        self.dataset.extract_feature_simple(id_heavyside, ('id',))
+        tests = list(self.dataset.yield_data_records(('id_heavyside',), filters={'id_heavyside': 0}))
+        assert len(tests) == 5
 
     def tearDown(self):
-        for i in range(10):
-            remove('testfolder/' + str(i))
-        rmdir('testfolder')
+        folder_destroyer()
         remove('testshelve.db')
 
 
@@ -172,10 +190,7 @@ class TestSQLite(BaseTest):
     def setUp(self):
         self.dataset = DataSet(backend='sqlite', db_path='testsqlite', table_name='test_table')
         if self.dataset.total_records == 0:
-            if not os.path.isdir('testfolder'):
-                makedirs('testfolder')
-                for i in range(10):
-                    open('testfolder/' + str(i), 'a').close()
+            folder_creator()
             self.dataset.populate(folder_tentacle, 'testfolder', 'filename')
 
     def test_deserialize(self):
@@ -195,9 +210,7 @@ class TestSQLite(BaseTest):
         assert 'numpy_feature' in feature_names  # the features were returned
 
     def tearDown(self):
-        for i in range(10):
-            remove('testfolder/' + str(i))
-        rmdir('testfolder')
+        folder_destroyer()
         remove('testsqlite')
 
 
@@ -210,10 +223,7 @@ class TestNumpyConvert(unittest.TestCase):
         """
         self.dataset = DataSet(backend='shelve', db_path='testshelve')  # we will use the folder tentacle for testing
         if self.dataset.total_records == 0:
-            if not os.path.isdir('testfolder'):
-                makedirs('testfolder')
-                for i in range(10):
-                    open('testfolder/' + str(i), 'a').close()
+            folder_creator()
             self.dataset.populate(folder_tentacle, 'testfolder', 'filename')
         self.dataset.extract_feature_simple(numpy_feature, ())
         self.dataset.extract_feature_simple(numpy_feature2, ())
@@ -233,9 +243,7 @@ class TestNumpyConvert(unittest.TestCase):
         assert feature[0, 4] == 1  # converts multiple features for each record into a single numpy array correctly
 
     def tearDown(self):
-        for i in range(10):
-            remove('testfolder/' + str(i))
-        rmdir('testfolder')
+        folder_destroyer()
         remove('testshelve.db')
 
 
@@ -248,10 +256,7 @@ class TestDump(unittest.TestCase):
         """
         self.dataset = DataSet(backend='shelve', db_path='testshelve')  # we will use the folder tentacle for testing
         if self.dataset.total_records == 0:
-            if not os.path.isdir('testfolder'):
-                makedirs('testfolder')
-                for i in range(10):
-                    open('testfolder/' + str(i), 'a').close()
+            folder_creator()
             self.dataset.populate(folder_tentacle, 'testfolder', 'filename')
         self.dataset.extract_feature_simple(ext3, ())
         self.dataset.extract_feature_simple(string_feature, ())
@@ -267,11 +272,42 @@ class TestDump(unittest.TestCase):
         assert 'numpy_feature' in feature_names
 
     def tearDown(self):
-        for i in range(10):
-            remove('testfolder/' + str(i))
-        rmdir('testfolder')
+        folder_destroyer()
         remove('testshelve.db')
         remove('testsqlite1')
+
+
+class TestSync(unittest.TestCase):
+    def setUp(self):
+        """
+        This creates a DataSet which uses the shelve backend. It also creates a folder with 10 files (named 0 to 9)
+        to use with the folder_tentacle (if a testfolder already exists, this just reaches inside it and grabs what's
+        there)
+        """
+        self.dataset1 = DataSet(backend='sqlite', db_path='testsqlite1', table_name='test_table')
+        self.dataset2 = DataSet(backend='sqlite', db_path='testsqlite2', table_name='test_table')
+        if self.dataset1.total_records == 0:
+            folder_creator()
+            self.dataset1.populate(folder_tentacle, 'testfolder', 'filename')
+            self.dataset2.populate(folder_tentacle, 'testfolder', 'filename')
+        self.dataset1.extract_feature_simple(ext3, ())
+        self.dataset1.extract_feature_simple(string_feature, ())
+        self.dataset2.extract_feature_simple_custom_serializer(numpy_feature, (), numpy_array_serializer)
+
+    def test_syncing(self):
+        sync_datasets(self.dataset1, self.dataset2, serializers={'numpy_feature': numpy_array_serializer},
+                      deserializers={'numpy_feature': numpy_array_deserializer})
+        names1 = self.dataset1.feature_names()
+        names2 = self.dataset2.feature_names()
+        assert 'numpy_feature' in names1
+        assert 'ext3' in names2
+        assert 'string_feature' in names2
+
+    def tearDown(self):
+        folder_destroyer()
+        remove('testsqlite1')
+        remove('testsqlite2')
+
 
 if __name__ == '__main__':
     unittest.main()
