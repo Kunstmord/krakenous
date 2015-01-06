@@ -4,7 +4,7 @@ Misc. helper functions
 """
 
 import numpy as np
-from krakenlib.errors import KrakenousException
+from krakenous.errors import KrakenousException
 
 
 def is_a_number(x):

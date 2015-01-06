@@ -8,9 +8,9 @@ from csv import reader
 from os.path import join, isfile
 import numpy as np
 from os import walk
-from krakenlib.dataset import DataSet
-from krakenlib.misc import element_length
-from krakenlib.errors import KrakenousException
+from krakenous.dataset import DataSet
+from krakenous.misc import element_length
+from krakenous.errors import KrakenousException
 from json import dumps, loads
 
 

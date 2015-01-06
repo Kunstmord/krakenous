@@ -1,12 +1,12 @@
 __author__ = 'Viktor Evstratov, George Oblapenko'
 import unittest
-from krakenlib.dataset import DataSet
-from krakenlib.prerolled import folder_tentacle, convert_multiple_features_numpy, convert_single_feature_numpy,\
+from krakenous.dataset import DataSet
+from krakenous.prerolled import folder_tentacle, convert_multiple_features_numpy, convert_single_feature_numpy,\
     numpy_array_serializer, dump_dataset, numpy_array_deserializer, sync_datasets
 import os.path
 from os import makedirs, rmdir, remove
 import numpy as np
-import krakenlib.errors
+import krakenous.errors
 
 
 def fake_extractor(add_data, val):
@@ -100,7 +100,7 @@ class BaseTest(unittest.TestCase):
         self.dataset.insert_single(5, 'extra_field', 'extra number', overwrite_existing=True)
         assert self.dataset.feature_exists(5, 'extra_field') is True  # inserts something
         assert self.dataset.feature_exists(4, 'extra_field') is False  # inserts only for the correct id
-        self.assertRaises(krakenlib.errors.KrakenousException, self.dataset.insert_single,
+        self.assertRaises(krakenous.errors.KrakenousException, self.dataset.insert_single,
                           5, 'extra_field', 3333)
         # ^ does not overwrite by accident and raies correct error
         self.dataset.insert_single(5, 'extra_field', 5555, overwrite_existing=True)

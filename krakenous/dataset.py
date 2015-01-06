@@ -1,6 +1,6 @@
 __author__ = 'George Oblapenko, Viktor Evstratov'
 __license__ = "GPLv3"
-from krakenlib.errors import *
+from krakenous.errors import *
 import os.path
 from json import dumps
 
@@ -19,7 +19,7 @@ class DataSet(object):
                 raise KrakenousException('No path to shelve file specified')
             else:
                 self.db_data = {'db_path': kwargs['db_path']}
-                self.backend = __import__('krakenlib.backend_shelve', fromlist=['backend_shelve'])
+                self.backend = __import__('.backend_shelve', fromlist=['backend_shelve'])
                 if os.path.isfile(self.db_data['db_path'] + '.db'):
                     self.total_records = self.backend.data_records_amount(self.db_data)
         elif self.backend_name == 'sqlite':
@@ -29,7 +29,7 @@ class DataSet(object):
                 raise KrakenousException('No SQLite table name specified')
             else:
                 self.db_data = {'db_path': kwargs['db_path'], 'table_name': kwargs['table_name']}
-                self.backend = __import__('krakenlib.backend_sqlite', fromlist=['backend_sqlite'])
+                self.backend = __import__('.backend_sqlite', fromlist=['backend_sqlite'])
                 if os.path.isfile(self.db_data['db_path']):
                     self.total_records = self.backend.data_records_amount(self.db_data)
                 else:
