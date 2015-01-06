@@ -41,6 +41,10 @@ Changelog
 v0.3 (Squishable Squid Eyeball)
 -------------------------------
 
+v0.2.1 (bugfix-only release)
+----------------------------
+06.01.2015 Fixed imports and renamed source folder
+
 v0.2 (Charismatic Octopii)
 --------------------------
 
