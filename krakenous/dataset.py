@@ -8,6 +8,7 @@ from json import dumps
 class DataSet(object):
     def __init__(self, **kwargs):
         self.total_records = 0
+        self.not_commited = 0
 
         if 'backend' not in kwargs:
             raise KrakenousException('No backend specified')
@@ -19,7 +20,7 @@ class DataSet(object):
                 raise KrakenousException('No path to shelve file specified')
             else:
                 self.db_data = {'db_path': kwargs['db_path']}
-                self.backend = __import__('.backend_shelve', fromlist=['backend_shelve'])
+                self.backend = __import__('krakenous.backend_shelve', fromlist=['backend_shelve'])
                 if os.path.isfile(self.db_data['db_path'] + '.db'):
                     self.total_records = self.backend.data_records_amount(self.db_data)
         elif self.backend_name == 'sqlite':
@@ -29,7 +30,7 @@ class DataSet(object):
                 raise KrakenousException('No SQLite table name specified')
             else:
                 self.db_data = {'db_path': kwargs['db_path'], 'table_name': kwargs['table_name']}
-                self.backend = __import__('.backend_sqlite', fromlist=['backend_sqlite'])
+                self.backend = __import__('krakenous.backend_sqlite', fromlist=['backend_sqlite'])
                 if os.path.isfile(self.db_data['db_path']):
                     self.total_records = self.backend.data_records_amount(self.db_data)
                 else:
@@ -127,6 +128,24 @@ class DataSet(object):
         if self.backend_name == 'shelve':
             self.backend.write_data(db, record_id, feature_name, data)
         else:
+            self.backend.write_data(db, record_id, feature_name, data, serializer)
+        self.backend.close_db(db)
+
+    def insert_for_range(self, start_id: int, end_id: int, feature_name: str, data,
+                         overwrite_existing: bool=False, serializer=None):
+        """
+        insert a single value (data) for a range of ids
+        """
+        db = self.backend.open_db(self.db_data)
+        if self.backend_name == 'sqlite':
+            if not serializer:
+                serializer = dumps
+            if feature_name not in self.feature_names():
+                self.backend.create_new_column(db, feature_name)
+            else:
+                if not overwrite_existing:
+                    raise KrakenousException('Feature with name "' + feature_name + '" already exists')
+        for i, record_id in enumerate(range(start_id, end_id + 1)):
             self.backend.write_data(db, record_id, feature_name, data, serializer)
         self.backend.close_db(db)
 
