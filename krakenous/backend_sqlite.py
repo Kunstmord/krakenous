@@ -17,14 +17,13 @@ def create_db(db_data: dict):
     conn.close()
 
 
-def open_db(db_data: dict, writeback: bool=False) -> dict:
+def open_db(db_data: dict) -> dict:
     """
     open the db for reading, return everything in a dict - cursor, connection, metadata
     """
     conn = sqlite3.connect(db_data['db_path'])
     return {'db': conn.cursor(),
-            'db_connection': conn,
-            'writeback': writeback, 'table_name': db_data['table_name']}
+            'db_connection': conn, 'table_name': db_data['table_name']}
 
 
 def close_db(db: dict):
