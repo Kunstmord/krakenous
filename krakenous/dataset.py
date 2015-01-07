@@ -146,7 +146,7 @@ class DataSet(object):
                 if not overwrite_existing:
                     raise KrakenousException('Feature with name "' + feature_name + '" already exists')
         for i, record_id in enumerate(range(start_id, end_id + 1)):
-            self.backend.write_data(db, record_id, feature_name, data, serializer)
+            self.backend.write_data(db, record_id, feature_name, data[i], serializer)
         self.backend.close_db(db)
 
     def extract_feature_full_for_range(self, start_id: int, end_id: int,
