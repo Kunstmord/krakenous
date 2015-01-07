@@ -142,7 +142,7 @@ def convert_multiple_features_numpy(dataset: DataSet, feature_names: tuple, star
             total_length += feature_len[0]
             lengths.append(feature_len)
     if total_length > 0:
-        result = np.zeros((dataset.total_records + 1 - start_id, total_length))
+        result = np.zeros((end_id + 1 - start_id, total_length))
         for data_record in enumerate(dataset.yield_data_records(feature_names, start_id, end_id)):
             curr_len = 0
             for name_number_pair in enumerate(feature_names):
