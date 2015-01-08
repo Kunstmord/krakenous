@@ -66,7 +66,7 @@ class DataSet(object):
 
     def append_data_record(self, data_record: dict, serializers=None):
         """
-        do not write id field! (if exists in dict) (doesn't concern shelve)
+        do not write id field! (if exists in dict)
         """
         db = self.backend.open_db(self.db_data)
         if 'id' in data_record.keys():
@@ -84,7 +84,7 @@ class DataSet(object):
 
     def _append_data_record_open(self, data_record: dict, db):
         """
-        do not write id field! (if exists in dict) (doesn't concern shelve)
+        do not write id field! (if exists in dict)
         """
         self.total_records += 1
 
@@ -110,7 +110,6 @@ class DataSet(object):
         insert a single value (data) for a range of ids
         """
         db = self.backend.open_db(self.db_data)
-        # if self.backend_name == 'sqlite':
         if not serializer:
             serializer = dumps
         if feature_name not in self.feature_names():
@@ -197,24 +196,12 @@ class DataSet(object):
                     self.backend.commit_db(db)
             self.backend.close_db(db)
 
-    def rename_feature(self, original_feature_name: str, new_feature_name: str, overwrite_existing: bool=False,
-                       writeback: int=0):
+    def rename_feature(self, original_feature_name: str, new_feature_name: str, overwrite_existing: bool=False):
         if self.backend_name == 'sqlite':
             raise KrakenousUnsupportedOperation('Renaming of features is not available for the SQLite backend')
-        # if self.total_records == 0:
-        #     raise KrakenousException('The dataset is empty!')
-        # if not overwrite_existing and self.feature_exists_global(new_feature_name):
-        #     raise KrakenousException('Feature with name "' + new_feature_name + '" already exists')
 
     def delete_records(self, record_ids: tuple, writeback: int=0):
         raise KrakenousNotImplemented('Deleting records is not implemented for the SQLite backend')
-        # if self.backend_name == 'shelve':
-        #     if writeback != 0:
-        #         db = self.backend.open_db(self.db_data, True)
-        #     else:
-        #         db = self.backend.open_db(self.db_data, False)
-        # elif self.backend_name == 'sqlite':
-        #     raise KrakenousNotImplemented('Deleting records is not implemented for the SQLite backend')
         # if self.total_records == 0:
         #     raise KrakenousException('The dataset is empty!')
         # for record_id in record_ids:
@@ -296,7 +283,8 @@ class DataSet(object):
         self.backend.close_db(db)
         return return_list
 
-    def _single_data_record_open(self, record_id, db, column_names: tuple=(), deserializers: dict=None) -> dict:
+    def _single_data_record_open(self, record_id, db, column_names: tuple=(), deserializers: dict=None,
+                                 filters=None) -> dict:
         """
         returns a dict
         """
@@ -307,11 +295,15 @@ class DataSet(object):
         else:
             for column_name in column_names:
                 if column_name != 'id':
-                    if self.backend_name == 'sqlite' and deserializers and column_name in deserializers:
+                    if deserializers and column_name in deserializers:
                         result_dict[column_name] = self.backend.read_single_data(db, record_id, column_name,
-                                                                                 deserializers[column_name])
+                                                                                 deserializers[column_name],
+                                                                                 filters)
                     else:
-                        result_dict[column_name] = self.backend.read_single_data(db, record_id, column_name)
+                        result_dict[column_name] = self.backend.read_single_data(db, record_id, column_name,
+                                                                                 filters=filters)
+                        if result_dict[column_name] is None:
+                            return None
                 else:
                     result_dict['id'] = record_id
         return result_dict
@@ -349,14 +341,13 @@ class DataSet(object):
         db = self.backend.open_db(self.db_data)
         end_id = self.get_end_id(start_id, end_id)
         for record_id in range(start_id, end_id + 1):
-            if filters:
-                data_record = self._single_data_record_open(record_id, db, column_names, deserializers)
-                flag = True
-                for column_name in filters:
-                    if data_record[column_name] != filters[column_name]:
-                        flag = False
-                if flag:
-                    yield data_record
+            if filters and 'id' in filters:
+                if record_id == filters['id']:
+                    res = self._single_data_record_open(filters['id'], db, column_names, deserializers, filters)
+                    if res is not None:
+                        yield res
             else:
-                yield self._single_data_record_open(record_id, db, column_names, deserializers)
+                res = self._single_data_record_open(record_id, db, column_names, deserializers, filters)
+                if res is not None:
+                    yield res
         self.backend.close_db(db)
