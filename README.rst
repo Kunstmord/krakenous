@@ -49,10 +49,10 @@ on ``None``), this should help work with Null values (probably, not tested yet).
 v0.2 (Charismatic Octopii)
 --------------------------
 
+**v0.2.1 (06.01.2015)** Fixed imports and renamed source folder
+
 **v0.2 (05.01.2015)** The first more-or-less stable version. No docstrings yet. Serialization / deserialization support,
 probably more-or-less stable function signatures and some working pre-rolled functions are in place.
-
-**v0.2.1 (06.01.2015)** Fixed imports and renamed source folder
 
 v0.1 (Tentacleous Chaos)
 ------------------------
