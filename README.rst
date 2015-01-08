@@ -2,7 +2,7 @@ Krakenous
 =========
 
 Krakenous is a Python "backend" for machine-learning tasks. It provides various storage options (currently,
-SQLite and Python shelves are implemented), and a lot of helper methods/functions. Designed to help with Kaggle
+SQLite as a backend is implemented), and a lot of helper methods/functions. Designed to help with Kaggle
 competitions.
 
 Why?
@@ -41,15 +41,18 @@ Changelog
 v0.3 (Squishable Squid Eyeball)
 -------------------------------
 
-v0.2.1 (bugfix-only release)
-----------------------------
-06.01.2015 Fixed imports and renamed source folder
+**v0.3 (08.01.2015)** Added some additional methods, major cleanup in the ``DataSet`` class. Shelve has been deprecated
+as a backend, only SQLite support for now. The ``yield_data_records`` now utilizes ``WHERE`` clauses in the backend
+and so should work faster. Fixed error when attempting to deserialize a non-existent record (serializer fails
+on ``None``), this should help work with Null values (probably, not tested yet).
 
 v0.2 (Charismatic Octopii)
 --------------------------
 
-05.01.2015 The first more-or-less stable version. No docstrings yet. Serialization / deserialization support,
+**v0.2 (05.01.2015)** The first more-or-less stable version. No docstrings yet. Serialization / deserialization support,
 probably more-or-less stable function signatures and some working pre-rolled functions are in place.
+
+**v0.2.1 (06.01.2015)** Fixed imports and renamed source folder
 
 v0.1 (Tentacleous Chaos)
 ------------------------
