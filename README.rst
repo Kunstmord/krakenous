@@ -42,7 +42,7 @@ v0.3 (Squishable Squid Eyeball)
 -------------------------------
 
 **v0.3 (08.01.2015)** Added some additional methods, major cleanup in the ``DataSet`` class. Shelve has been deprecated
-as a backend, only SQLite support for now. The ``yield_data_records`` now utilizes ``WHERE`` clauses in the backend
+as a backend, only SQLite support for now. The ``yield_data_records`` method now utilizes ``WHERE`` clauses in the backend
 and so should work faster. Fixed error when attempting to deserialize a non-existent record (serializer fails
 on ``None``), this should help work with Null values (probably, not tested yet).
 
