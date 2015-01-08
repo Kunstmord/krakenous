@@ -62,15 +62,23 @@ def append_data_record(db: dict, record_id: int, data_dict: dict, serializers=No
     db['db'].execute(sql_string, tuple(insertion_data))
 
 
-def read_single_data(db: dict, record_id: int, data_name: str, deserializer=None):
+def read_single_data(db: dict, record_id: int, data_name: str, deserializer=None, filters=None):
     """Return the contents of a data column specified by data_name for a given record_id
     """
     sql_string = 'SELECT ' + data_name + ' FROM ' + db['table_name'] + ' WHERE id=' + str(record_id)
+
+    if filters:
+        for filter_key in filters:
+            sql_string += ' AND ' + filter_key + '=' + str(filters[filter_key])
     db['db'].execute(sql_string)
-    if deserializer:
-        return deserializer(db['db'].fetchone()[0])
+    res = db['db'].fetchone()
+    if res is not None:
+        if deserializer:
+            return deserializer(res[0])
+        else:
+            return loads(res[0])
     else:
-        return loads(db['db'].fetchone()[0])
+        return None
 
 
 def read_multiple_data(db: dict, record_id: int, data_names: tuple, deserializers=None):
