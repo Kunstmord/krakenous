@@ -109,6 +109,8 @@ class DataSet(object):
         """
         insert a single value (data) for a range of ids
         """
+        end_id = self.get_end_id(start_id, end_id)
+
         db = self.backend.open_db(self.db_data)
         if not serializer:
             serializer = dumps
