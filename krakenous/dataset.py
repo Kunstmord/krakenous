@@ -7,6 +7,17 @@ from json import dumps
 
 class DataSet(object):
     def __init__(self, **kwargs):
+        """
+
+        :param kwargs: Parameters need to connect to the database. The ``backend`` parameter specifies the
+                       database to be used (currently, only the ``'slite'`` value is supported).
+                       If the SQLite backend is selected, the parameter ``db_path`` should specify the
+                       SQLite database file and the ``table_name`` parameter should specify the table name to be used.
+        :return:
+        :raises KrakenousException: If no ``backend`` parameter is given as input or if the ``backend`` parameter
+                is not one of the following: ``'sqlite'``. If ``backend == sqlite`` and no path to the SQLite file is
+                specified by the ``db_path`` parameter or no table name is specified by the ``table_name`` parameter
+        """
         self.total_records = 0
         self.not_commited = 0
 
@@ -29,9 +40,20 @@ class DataSet(object):
         else:
             raise KrakenousException('Unknown backend ' + self.backend_name)
 
-    def get_end_id(self, start_id, end_id):
+    def get_end_id(self, start_id: int, end_id: int) -> int:
+        """
+        A helper function to check whether the range specified by ``start_id``, ``end_id`` is usable
+        :param int start_id: The starting point of the range
+        :param int end_id: The ending point of the range. If equal to -1, it is set to the total
+                           number of records in the dataset
+        :return: The ending point of the range
+        :rtype: int
+        :raises KrakenousException: If ``start_id < 0`` or ``start_id > end_id`` or ``end_id > self.total_records``
+                                    (where ``self.total_records`` is the number of records in the dataset)
+                                    or ``self.total_records == 0``
+        """
         if self.total_records == 0:
-            raise KrakenousException('The dataset is empty!')
+            raise KrakenousException('The dataset is empty')
         if end_id == -1:
             end_id = self.total_records
         else:
@@ -105,7 +127,7 @@ class DataSet(object):
         self.backend.close_db(db)
 
     def insert_for_range(self, start_id: int, end_id: int, feature_name: str, data,
-                         overwrite_existing: bool=False, serializer=None):
+                         writeback: int=0, overwrite_existing: bool=False, serializer=None):
         """
         insert a single value (data) for a range of ids
         """
@@ -120,7 +142,10 @@ class DataSet(object):
             if not overwrite_existing:
                 raise KrakenousException('Feature with name "' + feature_name + '" already exists')
         for i, record_id in enumerate(range(start_id, end_id + 1)):
+
             self.backend.write_data(db, record_id, feature_name, data[i], serializer)
+            if writeback > 0 and i % writeback == 0:
+                self.backend.commit_db(db)
         self.backend.close_db(db)
 
     def extract_feature_full_for_range(self, start_id: int, end_id: int,
